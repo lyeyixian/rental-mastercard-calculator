@@ -1,9 +1,16 @@
-'use strict';
+import { chromium, Page, Response } from 'playwright';
 
-const { chromium } = require('playwright');
+// ── Configuration ──────────────────────────────────────────────────────────────
 
-// Configuration
-const CONFIG = {
+interface Config {
+  fromCurrency: string;
+  amount: number;
+  toCurrency: string;
+  bankFee: number;
+  url: string;
+}
+
+const CONFIG: Config = {
   fromCurrency: 'MYR',
   amount: 2950,
   toCurrency: 'SGD',
@@ -11,40 +18,53 @@ const CONFIG = {
   url: 'https://www.mastercard.com/global/en/personal/get-support/currency-exchange-rate-converter.html',
 };
 
-/**
- * Returns the first day of the current month as a Date object.
- */
-function getFirstDayOfCurrentMonth() {
+// ── Types ──────────────────────────────────────────────────────────────────────
+
+interface ConversionData {
+  conversionRate: string;
+  [key: string]: unknown;
+}
+
+interface ApiResponse {
+  data?: ConversionData;
+  error?: string;
+  [key: string]: unknown;
+}
+
+interface ConversionResult {
+  rate: number;
+  convertedAmount: number;
+  dateStr: string;
+}
+
+// ── Date helpers ───────────────────────────────────────────────────────────────
+
+/** Returns the first day of the current month as a Date object. */
+function getFirstDayOfCurrentMonth(): Date {
   const now = new Date();
   return new Date(now.getFullYear(), now.getMonth(), 1);
 }
 
-/**
- * Formats a Date object as YYYY-MM-DD.
- * @param {Date} date
- * @returns {string}
- */
-function formatDate(date) {
+/** Formats a Date object as YYYY-MM-DD. */
+function formatDate(date: Date): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
 
+// ── Form helpers ───────────────────────────────────────────────────────────────
+
 /**
  * Attempts to interact with the currency converter form on the page.
  * The Mastercard page is a React SPA with custom dropdown components.
- *
- * @param {import('playwright').Page} page
- * @param {string} dateStr - YYYY-MM-DD date string
  */
-async function fillConverterForm(page, dateStr) {
+async function fillConverterForm(page: Page, dateStr: string): Promise<boolean> {
   // Wait for the page to be interactive
   await page.waitForLoadState('domcontentloaded');
   await page.waitForTimeout(2000);
 
   // ── From Currency ──────────────────────────────────────────────────────────
-  // Try native <select> first, then custom dropdown components
   const fromFilled = await trySetCurrency(page, 'from', CONFIG.fromCurrency);
   if (fromFilled) console.log(`  ✓ From currency set to ${CONFIG.fromCurrency}`);
 
@@ -71,7 +91,11 @@ async function fillConverterForm(page, dateStr) {
   return fromFilled && amountFilled && toFilled && dateFilled;
 }
 
-async function trySetCurrency(page, direction, currencyCode) {
+async function trySetCurrency(
+  page: Page,
+  direction: string,
+  currencyCode: string,
+): Promise<boolean> {
   const selectSelectors = [
     `select[name="${direction}Currency"]`,
     `select#${direction}-currency`,
@@ -111,7 +135,7 @@ async function trySetCurrency(page, direction, currencyCode) {
   return false;
 }
 
-async function tryFillAmount(page, amount) {
+async function tryFillAmount(page: Page, amount: number): Promise<boolean> {
   const selectors = [
     'input[name="amount"]',
     '#amount',
@@ -128,7 +152,7 @@ async function tryFillAmount(page, amount) {
   return false;
 }
 
-async function tryFillBankFee(page, fee) {
+async function tryFillBankFee(page: Page, fee: number): Promise<boolean> {
   const selectors = [
     'input[name="bankFee"]',
     '#bank-fee',
@@ -145,7 +169,7 @@ async function tryFillBankFee(page, fee) {
   return false;
 }
 
-async function trySetDate(page, dateStr) {
+async function trySetDate(page: Page, dateStr: string): Promise<boolean> {
   const selectors = [
     'input[type="date"]',
     '#transaction-date',
@@ -163,7 +187,7 @@ async function trySetDate(page, dateStr) {
   return false;
 }
 
-async function trySubmit(page) {
+async function trySubmit(page: Page): Promise<boolean> {
   const selectors = [
     'button[type="submit"]',
     'input[type="submit"]',
@@ -183,15 +207,16 @@ async function trySubmit(page) {
   return false;
 }
 
+// ── API helpers ────────────────────────────────────────────────────────────────
+
 /**
  * Makes a direct API call to the Mastercard conversion endpoint using the
  * browser context's cookies (acquired by first visiting the main page).
- *
- * @param {import('playwright').Page} page
- * @param {string} dateStr
- * @returns {Promise<object|null>} parsed JSON data or null
  */
-async function callConversionApiViaPage(page, dateStr) {
+async function callConversionApiViaPage(
+  page: Page,
+  dateStr: string,
+): Promise<ApiResponse | null> {
   const apiUrl =
     'https://www.mastercard.com/marketingservices/public/mccom-services/' +
     'currency-conversions/conversion-rates';
@@ -206,10 +231,10 @@ async function callConversionApiViaPage(page, dateStr) {
 
   const fullUrl = `${apiUrl}?${params.toString()}`;
 
-  const result = await page.evaluate(async (url) => {
+  const result = await page.evaluate(async (url: string): Promise<ApiResponse> => {
     const resp = await fetch(url, { credentials: 'include' });
     if (!resp.ok) return { error: `HTTP ${resp.status}` };
-    return resp.json();
+    return resp.json() as Promise<ApiResponse>;
   }, fullUrl);
 
   return result;
@@ -217,11 +242,8 @@ async function callConversionApiViaPage(page, dateStr) {
 
 /**
  * Extracts the conversion result from the page DOM after form submission.
- *
- * @param {import('playwright').Page} page
- * @returns {Promise<string|null>} result text or null
  */
-async function extractResultFromPage(page) {
+async function extractResultFromPage(page: Page): Promise<string | null> {
   const resultSelectors = [
     '[class*="result"]',
     '[class*="converted"]',
@@ -234,18 +256,20 @@ async function extractResultFromPage(page) {
   for (const sel of resultSelectors) {
     try {
       await page.waitForSelector(sel, { timeout: 2000 });
-      const text = await page.$eval(sel, (el) => el.textContent.trim());
-      if (text && text.length > 0) return text;
+      const text = await page.$eval(sel, (el: Element) => el.textContent?.trim() ?? '');
+      if (text.length > 0) return text;
     } catch (_) { /* continue */ }
   }
   return null;
 }
 
+// ── Main ───────────────────────────────────────────────────────────────────────
+
 /**
  * Main entry point – fetches the MYR→SGD conversion for the first day of the
  * current month and prints the result.
  */
-async function main() {
+async function main(): Promise<ConversionResult | undefined> {
   const firstDay = getFirstDayOfCurrentMonth();
   const dateStr = formatDate(firstDay);
 
@@ -279,19 +303,19 @@ async function main() {
   const page = await context.newPage();
 
   // ── Capture any conversion-rate API responses ──────────────────────────────
-  let interceptedData = null;
-  page.on('response', async (response) => {
+  let interceptedData: ConversionData | null = null;
+  page.on('response', async (response: Response) => {
     try {
       if (response.url().includes('currency-conversions/conversion-rates')) {
-        const json = await response.json();
-        if (json && json.data) interceptedData = json.data;
+        const json: ApiResponse = await response.json() as ApiResponse;
+        if (json?.data) interceptedData = json.data;
       }
     } catch (_) { /* ignore non-JSON */ }
   });
 
   try {
     // Step 1 – visit the converter page to establish a valid browser session
-    console.log(`Navigating to Mastercard converter…`);
+    console.log('Navigating to Mastercard converter…');
     await page.goto(CONFIG.url, {
       waitUntil: 'domcontentloaded',
       timeout: 60000,
@@ -311,8 +335,11 @@ async function main() {
     if (!interceptedData) {
       console.log('Form submission did not yield a network response – trying direct API call…');
       const apiResult = await callConversionApiViaPage(page, dateStr);
-      if (apiResult && apiResult.data) interceptedData = apiResult.data;
-      else if (apiResult && !apiResult.error) interceptedData = apiResult;
+      if (apiResult?.data) {
+        interceptedData = apiResult.data;
+      } else if (apiResult && !apiResult.error) {
+        interceptedData = apiResult as unknown as ConversionData;
+      }
     }
 
     // ── Print result ───────────────────────────────────────────────────────
@@ -348,7 +375,7 @@ async function main() {
   }
 }
 
-main().catch((err) => {
+main().catch((err: Error) => {
   console.error('Unexpected error:', err.message);
   process.exit(1);
 });

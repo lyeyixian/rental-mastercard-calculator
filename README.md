@@ -1,6 +1,6 @@
 # rental-mastercard-calculator
 
-A Node.js program that uses a headless Chromium browser to fetch the **MYR → SGD** exchange rate from the [Mastercard Currency Exchange Rate Converter](https://www.mastercard.com/global/en/personal/get-support/currency-exchange-rate-converter.html) and calculates the Singapore dollar amount needed to transfer for a Malaysia rent payment.
+A Node.js/TypeScript program that uses a headless Chromium browser to fetch the **MYR → SGD** exchange rate from the [Mastercard Currency Exchange Rate Converter](https://www.mastercard.com/global/en/personal/get-support/currency-exchange-rate-converter.html) and calculates the Singapore dollar amount needed to transfer for a Malaysia rent payment.
 
 ## What it does
 
@@ -64,7 +64,7 @@ Filling in the converter form…
 
 ## Configuration
 
-Edit the `CONFIG` object near the top of `index.js` to change the defaults:
+Edit the `CONFIG` object near the top of `src/index.ts` to change the defaults:
 
 | Field          | Default | Description                         |
 |----------------|---------|-------------------------------------|
