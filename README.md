@@ -62,9 +62,24 @@ Filling in the converter form…
 ============================================================
 ```
 
+## Project structure
+
+```
+src/
+  config.ts              # CONFIG constant and Config interface
+  types.ts               # Shared TypeScript interfaces
+  utils/
+    date.ts              # Date helper functions
+  scraper/
+    form.ts              # Form-filling helpers
+    api.ts               # API call and DOM extraction helpers
+    calculator.ts        # Browser orchestration and result printing
+  index.ts               # Entry point
+```
+
 ## Configuration
 
-Edit the `CONFIG` object near the top of `src/index.ts` to change the defaults:
+Edit the `CONFIG` object in `src/config.ts` to change the defaults:
 
 | Field          | Default | Description                         |
 |----------------|---------|-------------------------------------|
