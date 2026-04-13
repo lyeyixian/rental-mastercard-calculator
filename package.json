@@ -1,0 +1,25 @@
+{
+  "name": "rental-mastercard-calculator",
+  "version": "1.0.0",
+  "description": "A program to calculate monthly rental using month-start FX rate",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lyeyixian/rental-mastercard-calculator.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/lyeyixian/rental-mastercard-calculator/issues"
+  },
+  "homepage": "https://github.com/lyeyixian/rental-mastercard-calculator#readme",
+  "dependencies": {
+    "playwright": "^1.59.1"
+  }
+}
