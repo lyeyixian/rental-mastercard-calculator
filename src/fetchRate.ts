@@ -11,14 +11,19 @@ export interface FetchRateParams {
 }
 
 interface ConversionResponse {
-  data?: { conversionRate?: string };
+  data?: { conversionRate?: string; crdhldBillAmt?: string };
+}
+
+export interface FetchRateResult {
+  conversionRate: number;
+  crdhldBillAmt: number;
 }
 
 const API_URL =
   'https://www.mastercard.com/marketingservices/public/mccom-services/' +
   'currency-conversions/conversion-rates';
 
-export async function fetchRate(params: FetchRateParams): Promise<number> {
+export async function fetchRate(params: FetchRateParams): Promise<FetchRateResult> {
   const browser = await chromium.launch({
     headless: false,
     args: ['--disable-blink-features=AutomationControlled'],
@@ -44,11 +49,15 @@ export async function fetchRate(params: FetchRateParams): Promise<number> {
       return resp.json();
     }, apiUrl)) as ConversionResponse;
 
-    const rate = Number(json.data?.conversionRate);
-    if (!Number.isFinite(rate)) {
+    const conversionRate = Number(json.data?.conversionRate);
+    if (!Number.isFinite(conversionRate)) {
       throw new Error('Mastercard API response missing conversionRate');
     }
-    return rate;
+    const crdhldBillAmt = Number(json.data?.crdhldBillAmt);
+    if (!Number.isFinite(crdhldBillAmt)) {
+      throw new Error('Mastercard API response missing crdhldBillAmt');
+    }
+    return { conversionRate, crdhldBillAmt };
   } finally {
     await browser.close();
   }
