@@ -1,13 +1,24 @@
 # rental-mastercard-calculator
 
-A Node.js/TypeScript program that uses a headless Chromium browser to fetch the **MYR → SGD** exchange rate from the [Mastercard Currency Exchange Rate Converter](https://www.mastercard.com/global/en/personal/get-support/currency-exchange-rate-converter.html) and calculates the Singapore dollar amount needed to transfer for a Malaysia rent payment.
+A Node.js/TypeScript script that computes the **Transfer Amount** to send to the landlord's DBS account each month for a Malaysian rent payment, using the **Mastercard FX Rate** for the **Transaction Date** (the 1st of the current month).
 
-## What it does
+It fetches the rate, subtracts the agreed **Deduction**, prints the result, and copies the **Transfer Amount** to the clipboard so it can be pasted straight into DBS.
 
-- Visits the Mastercard FX converter with a headless browser
-- Looks up the rate for **the first day of the current month** (as required for monthly rent calculations)
-- Converts **MYR 2,950** → **SGD** with **0% bank fee**
-- Prints the exchange rate and the converted SGD amount
+For the precise definitions of these terms, see [`CONTEXT.md`](./CONTEXT.md).
+
+## How it works
+
+Mastercard's converter is protected by Akamai Bot Manager, which blocks vanilla headless requests. So the script:
+
+1. Opens a **visible** Chromium window via Playwright and waits briefly until the converter page has settled (enough to acquire valid Akamai session cookies).
+2. Calls Mastercard's `conversion-rates` JSON API **directly** from that browser context — it does not fill in the converter form.
+3. Reads `crdhldBillAmt` (Mastercard's pre-multiplied SGD figure) from the response, subtracts the **Deduction**, and prints / copies the result.
+
+The rationale for each of these choices lives in the ADRs:
+
+- [`docs/adr/0001-use-mastercard-fx-rate.md`](./docs/adr/0001-use-mastercard-fx-rate.md) — why Mastercard specifically (the rate source is part of the rental agreement).
+- [`docs/adr/0002-local-headed-browser.md`](./docs/adr/0002-local-headed-browser.md) — why a visible local browser, not headless or cloud-scheduled.
+- [`docs/adr/0003-skip-form-use-api-directly.md`](./docs/adr/0003-skip-form-use-api-directly.md) — why we call the JSON API directly instead of driving the React form.
 
 ## Requirements
 
@@ -17,60 +28,48 @@ A Node.js/TypeScript program that uses a headless Chromium browser to fetch the 
 ## Setup
 
 ```bash
-# 1. Install dependencies
 npm install
-
-# 2. Install the Chromium browser used by Playwright
 npx playwright install chromium
 ```
 
 ## Usage
 
 ```bash
+# Fetch the Mastercard FX Rate, compute the Transfer Amount, copy it to the clipboard.
 npm start
+
+# Run the unit tests on the pure modules (date, parseResponse, computeTransfer).
+npm test
 ```
 
-### Example output
-
-```
-============================================================
- Rental Mastercard FX Calculator
-============================================================
-  Transaction date : 2025-04-01 (first day of current month)
-  From             : MYR 2950
-  To               : SGD
-  Bank fee         : 0%
-============================================================
-
-Launching headless browser…
-Navigating to Mastercard converter…
-  ✓ Page loaded
-
-Filling in the converter form…
-  ✓ From currency set to MYR
-  ✓ Amount set to 2950
-  ✓ To currency set to SGD
-  ✓ Bank fee set to 0
-  ✓ Date set to 2025-04-01
-  ✓ Form submitted
-
-============================================================
- RESULT
-============================================================
-  Exchange rate      : 1 MYR = 0.2963 SGD
-  MYR 2950 → SGD 874.09
-============================================================
-```
+On a successful run, the script prints the Transaction Date, the Mastercard FX Rate, and the Transfer Amount, and (on macOS) puts the Transfer Amount on the clipboard ready to paste into DBS.
 
 ## Configuration
 
-Edit the `CONFIG` object near the top of `src/index.ts` to change the defaults:
+All knobs live in the `CONFIG` block near the top of [`src/index.ts`](./src/index.ts):
 
-| Field          | Default | Description                         |
-|----------------|---------|-------------------------------------|
-| `fromCurrency` | `MYR`   | Source currency                     |
-| `amount`       | `2950`  | Amount to convert                   |
-| `toCurrency`   | `SGD`   | Target currency                     |
-| `bankFee`      | `0`     | Bank fee percentage                 |
+| Field               | Default | Meaning |
+|---------------------|---------|---------|
+| `fromCurrency`      | `MYR`   | Currency of the **MYR Rent** (source of the conversion). |
+| `amount`            | `2950`  | The **MYR Rent** — the fixed monthly amount agreed with the landlord. |
+| `toCurrency`        | `SGD`   | Target currency (what gets transferred). |
+| `bankFee`           | `0`     | The Mastercard `bank_fee` query parameter — a card-issuer markup the API can model. Always `0` because we want the raw rate. **This is not the landlord Deduction** — see below. |
+| `deductionSgd`      | `5`     | The **Deduction**: a flat SGD amount the landlord absorbs, subtracted from the SGD-equivalent rent to produce the **Transfer Amount**. Nothing to do with Mastercard. |
+| `url`               | Mastercard converter URL | The page Playwright opens to acquire Akamai cookies. |
+| `readinessSelector` | `#calculate-button` | A selector the script waits for before calling the API — proves the page rendered and cookies are valid. |
 
-The transaction date is always computed automatically as the **first day of the current month** at runtime.
+The Transaction Date is not configurable; it is always computed as the 1st of the current calendar month.
+
+### "Bank fee" ambiguity
+
+`bankFee` (the Mastercard API query parameter) and the **Deduction** are unrelated. The bare phrase "bank fee" is avoided throughout the codebase and docs; see the "Flagged ambiguities" section in [`CONTEXT.md`](./CONTEXT.md).
+
+## Platform note (clipboard)
+
+The clipboard step shells out to `pbcopy`, which is **macOS-only**. On Linux or Windows the spawn fails silently and the script still prints the Transfer Amount to stdout — copy it manually from there.
+
+## Failure modes
+
+- **`Timed out waiting for #calculate-button. Akamai likely blocked the request — please retry.`** — The converter page never rendered the readiness selector within the timeout. Usually transient; just run `npm start` again. If it keeps happening, Akamai may have escalated detection of headed Chromium (see ADR-0002 for the fallback path).
+- **`parseRateResponse: <reason>. raw=<json>`** — Mastercard's API returned a 200 but the JSON didn't match the expected shape (see ADR-0003 for the recorded schema). The raw response is included in the error message for debugging; the schema in ADR-0003 is the starting point for re-detection.
+- **`HTTP <status>`** — The API call itself failed. Retry; if it persists, check `url` and whether Mastercard has changed the endpoint.
