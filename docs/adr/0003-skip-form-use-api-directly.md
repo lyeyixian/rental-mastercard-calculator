@@ -10,12 +10,14 @@ Recorded so we can detect drift later. All values are strings.
 
 ```json
 {
-  "conversionRate": "0.3238726",
-  "crdhldBillAmt": "955.4241700",
-  "crdhldBillCurr": "SGD",
-  "fxDate": "2026-02-01",
-  "transAmt": "2950",
-  "transCurr": "MYR"
+  "data": {
+    "conversionRate": "0.3238726",
+    "crdhldBillAmt": "955.4241700",
+    "crdhldBillCurr": "SGD",
+    "fxDate": "2026-02-01",
+    "transAmt": "2950",
+    "transCurr": "MYR"
+  }
 }
 ```
 
