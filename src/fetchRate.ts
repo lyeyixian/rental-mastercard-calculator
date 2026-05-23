@@ -1,5 +1,7 @@
 import { chromium } from 'playwright';
 
+import { parseRateResponse, ParsedRateResponse } from './parseResponse';
+
 export interface FetchRateParams {
   url: string;
   readinessSelector: string;
@@ -10,14 +12,7 @@ export interface FetchRateParams {
   amount: number;
 }
 
-interface ConversionResponse {
-  data?: { conversionRate?: string; crdhldBillAmt?: string };
-}
-
-export interface FetchRateResult {
-  conversionRate: number;
-  crdhldBillAmt: number;
-}
+export type FetchRateResult = ParsedRateResponse;
 
 const API_URL =
   'https://www.mastercard.com/marketingservices/public/mccom-services/' +
@@ -47,17 +42,9 @@ export async function fetchRate(params: FetchRateParams): Promise<FetchRateResul
       const resp = await fetch(url, { credentials: 'include' });
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       return resp.json();
-    }, apiUrl)) as ConversionResponse;
+    }, apiUrl)) as { data?: unknown };
 
-    const conversionRate = Number(json.data?.conversionRate);
-    if (!Number.isFinite(conversionRate)) {
-      throw new Error('Mastercard API response missing conversionRate');
-    }
-    const crdhldBillAmt = Number(json.data?.crdhldBillAmt);
-    if (!Number.isFinite(crdhldBillAmt)) {
-      throw new Error('Mastercard API response missing crdhldBillAmt');
-    }
-    return { conversionRate, crdhldBillAmt };
+    return parseRateResponse(json.data, params.transactionDate, params.amount);
   } finally {
     await browser.close();
   }

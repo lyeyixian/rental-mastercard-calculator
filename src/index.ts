@@ -40,7 +40,7 @@ function copyToClipboard(text: string): void {
 async function main(): Promise<void> {
   const transactionDate = formatDate(getFirstDayOfCurrentMonth());
 
-  const { conversionRate, crdhldBillAmt } = await fetchRate({
+  const { rate, crdhldBillAmt } = await fetchRate({
     url: CONFIG.url,
     readinessSelector: CONFIG.readinessSelector,
     transactionDate,
@@ -54,7 +54,7 @@ async function main(): Promise<void> {
   const transferAmountFormatted = transferAmount.toFixed(2);
 
   console.log(`Transaction Date: ${transactionDate}`);
-  console.log(`Rate: 1 ${CONFIG.fromCurrency} = ${conversionRate.toFixed(4)} ${CONFIG.toCurrency}`);
+  console.log(`Rate: 1 ${CONFIG.fromCurrency} = ${rate.toFixed(4)} ${CONFIG.toCurrency}`);
   console.log(`Transfer Amount: ${CONFIG.toCurrency} ${transferAmountFormatted}`);
 
   copyToClipboard(transferAmountFormatted);
