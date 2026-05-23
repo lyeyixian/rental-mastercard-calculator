@@ -14,3 +14,7 @@ Mastercard's converter is protected by Akamai Bot Manager, which aggressively bl
 - The script will not run unattended. Any future move to scheduled execution (cron, launchd, cloud) requires this design to be revisited.
 - If Akamai escalates its detection of headed Chromium, the script will fail and the fallback path is to add a stealth library.
 - A visible Chromium window pops up on the user's desktop briefly each run; acceptable for a once-a-month task.
+
+## Revisited 2026-05-24 (v2 planning)
+
+Re-evaluated against switching to a stealth-headless library (`patchright`, `playwright-extra` + stealth, `camoufox`) now that v2 introduces a daemon-style trigger. Confirmed: stay headed. The login-trigger pattern with self-dedup checked *before* Chromium opens (see [ADR-0004](./0004-decouple-fetch-from-notify.md)) preserves the once-per-month popup property — the visible window only appears the first time the script successfully fetches each month, not on every login.

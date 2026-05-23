@@ -12,6 +12,10 @@ _Avoid_: "exchange rate" on its own (ambiguous about source).
 The calendar date the Mastercard FX Rate is read for. Always the 1st of the current calendar month. When the 1st is a weekend or public holiday Mastercard returns the previous Friday's rate server-side, so this code does not handle the case explicitly.
 _Avoid_: "exchange date", "rate date", "today's date".
 
+**Reminder Date**:
+The 15th of the current calendar month — the day rent is due to the landlord and the day the autonomous reminder fires. Distinct from the Transaction Date: the Reminder Date is *when* the user pays, the Transaction Date is the date the rate is read *for*.
+_Avoid_: "rent date", "payment date", "due date" — all ambiguous about whether they refer to the rate's date or the rent's date.
+
 **MYR Rent**:
 The fixed monthly rent in Malaysian Ringgit, agreed with the landlord. The input to the conversion.
 _Avoid_: "rent amount" on its own (does not disambiguate currency).
@@ -45,3 +49,5 @@ If you mean the percentage, say "Mastercard `bank_fee`". If you mean the 5 SGD s
 > **You:** Almost. The Transfer Amount is rate × MYR Rent minus the Deduction — 5 SGD the landlord absorbs.
 > **Dev:** That's the Mastercard `bank_fee` parameter, right?
 > **You:** No — `bank_fee` is a Mastercard API field, always 0. The Deduction is a flat 5 SGD, separate from anything Mastercard knows about.
+> **Dev:** And the Telegram reminder fires on the 15th?
+> **You:** That's the Reminder Date — when rent is due. Don't confuse it with the Transaction Date, which is the 1st — the date the rate is read for.
