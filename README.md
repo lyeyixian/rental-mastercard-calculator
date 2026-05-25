@@ -22,7 +22,7 @@ The rationale for each of these choices lives in the ADRs:
 
 ## Requirements
 
-- [Node.js](https://nodejs.org/) ≥ 18
+- [Node.js](https://nodejs.org/) ≥ 20.12 (uses the built-in `process.loadEnvFile()`)
 - [npm](https://www.npmjs.com/)
 
 ## Setup
@@ -38,11 +38,29 @@ npx playwright install chromium
 # Fetch the Mastercard FX Rate, compute the Transfer Amount, copy it to the clipboard.
 npm start
 
+# Send a placeholder Telegram message to confirm bot setup works end-to-end.
+npm run smoke:telegram
+
 # Run the unit tests on the pure modules (date, parseResponse, computeTransfer).
 npm test
 ```
 
 On a successful run, the script prints the Transaction Date, the Mastercard FX Rate, and the Transfer Amount, and (on macOS) puts the Transfer Amount on the clipboard ready to paste into DBS.
+
+## Setting up Telegram
+
+The Telegram path delivers the autonomous reminder on the **Reminder Date**. To wire it up:
+
+1. **Create a bot.** In Telegram, open a chat with [@BotFather](https://t.me/BotFather) and run `/newbot`. Follow the prompts (display name, then a username ending in `bot`). BotFather replies with an HTTP API token — keep this around for step 3.
+2. **Find your chat ID.** Open a chat with your new bot and send it any message (e.g. "hi"). Then in a browser, visit `https://api.telegram.org/bot<TOKEN>/getUpdates`, replacing `<TOKEN>` with the token from step 1. The response is JSON; read `result[0].message.chat.id` — that's your `TELEGRAM_CHAT_ID`.
+3. **Populate `local/.env`.**
+   ```bash
+   cp local/.env.example local/.env
+   # edit local/.env and fill in TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID
+   chmod 600 local/.env
+   ```
+   Treat the bot token as a password. Worst case if leaked: a stranger can spam your own chat with the bot — limited blast radius, but still worth locking down.
+4. **Smoke-test.** Run `npm run smoke:telegram`. A placeholder message should arrive on your Telegram devices. If it doesn't, check the error printed to stderr — the Telegram API response body is included.
 
 ## Configuration
 

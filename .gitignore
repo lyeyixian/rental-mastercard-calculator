@@ -70,6 +70,10 @@ web_modules/
 .env.*
 !.env.example
 
+# Per-machine state and secrets (see docs/adr/0005-state-and-secrets-in-repo.md)
+local/*
+!local/.env.example
+
 # parcel-bundler cache (https://parceljs.org/)
 .cache
 .parcel-cache

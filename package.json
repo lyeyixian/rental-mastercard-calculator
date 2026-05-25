@@ -6,6 +6,7 @@
   "scripts": {
     "build": "tsc",
     "start": "ts-node src/index.ts",
+    "smoke:telegram": "ts-node src/smokeTelegram.ts",
     "test": "node --require ts-node/register --test 'src/*.test.ts'"
   },
   "repository": {
