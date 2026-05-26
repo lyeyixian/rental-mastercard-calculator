@@ -71,7 +71,21 @@ The fully autonomous flow — fetch the rate from the 2nd of the month on every 
 
 Both plists redirect stdout and stderr to `local/fetch.log` and `local/notify.log`, which the directory-level `local/` gitignore already covers.
 
-### Install
+### Quick install
+
+`scripts/install-launchd.sh` renders both templates with this machine's paths, copies them into `~/Library/LaunchAgents/`, and `launchctl load`s them. Re-running is safe — already-loaded agents are unloaded first. Pair with `scripts/uninstall-launchd.sh` to tear everything down.
+
+```bash
+scripts/install-launchd.sh --dry-run   # preview the rendered plists; touch nothing
+scripts/install-launchd.sh             # install + load
+scripts/uninstall-launchd.sh           # unload + remove
+```
+
+The script auto-detects the directories holding `npm` and `node` and embeds them as the agent's `PATH`. Override with `LAUNCHD_PATH=...` if the detected value is wrong for your setup (e.g. `LAUNCHD_PATH="/opt/homebrew/bin:/usr/bin:/bin"`).
+
+If you'd rather see exactly what goes into `~/Library/LaunchAgents/`, the manual procedure below is the same set of steps spelled out by hand.
+
+### Install (manual)
 
 The plist templates contain two placeholder tokens you replace with your own paths:
 
