@@ -1,4 +1,4 @@
-import path from 'node:path';
+import { ENV_FILE } from './paths';
 
 export interface Secrets {
   telegramBotToken: string;
@@ -6,20 +6,19 @@ export interface Secrets {
 }
 
 export function loadSecrets(): Secrets {
-  const envPath = path.join(__dirname, '..', 'local', '.env');
-  process.loadEnvFile(envPath);
+  process.loadEnvFile(ENV_FILE);
 
   const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN;
   const telegramChatId = process.env.TELEGRAM_CHAT_ID;
 
   if (!telegramBotToken) {
     throw new Error(
-      `Missing TELEGRAM_BOT_TOKEN in ${envPath}. See local/.env.example.`,
+      `Missing TELEGRAM_BOT_TOKEN in ${ENV_FILE}. See local/.env.example.`,
     );
   }
   if (!telegramChatId) {
     throw new Error(
-      `Missing TELEGRAM_CHAT_ID in ${envPath}. See local/.env.example.`,
+      `Missing TELEGRAM_CHAT_ID in ${ENV_FILE}. See local/.env.example.`,
     );
   }
 

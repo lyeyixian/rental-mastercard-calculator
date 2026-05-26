@@ -1,44 +1,30 @@
-import { spawn } from 'node:child_process';
-
 import { computeTransferAmount } from './computeTransfer';
-import { formatDate, getFirstDayOfCurrentMonth } from './date';
+import { CONFIG } from './config';
+import { formatDate, formatMonth, getFirstDayOfCurrentMonth } from './date';
 import { fetchRate } from './fetchRate';
-
-interface Config {
-  fromCurrency: string;
-  amount: number;
-  toCurrency: string;
-  bankFee: number;
-  deductionSgd: number;
-  url: string;
-  readinessSelector: string;
-}
-
-const CONFIG: Config = {
-  fromCurrency: 'MYR',
-  amount: 2950,
-  toCurrency: 'SGD',
-  bankFee: 0,
-  deductionSgd: 5,
-  url: 'https://www.mastercard.com/global/en/personal/get-support/currency-exchange-rate-converter.html',
-  readinessSelector: '#calculate-button',
-};
-
-function copyToClipboard(text: string): void {
-  try {
-    const child = spawn('pbcopy');
-    child.on('error', () => {
-      // pbcopy unavailable (Linux/Windows) — printed amount is still useful.
-    });
-    child.stdin.on('error', () => {});
-    child.stdin.end(text);
-  } catch {
-    // Spawn itself failed synchronously — ignore.
-  }
-}
+import { copyToClipboard, printSummary } from './output';
+import { STATE_FILE } from './paths';
+import { createStateStore } from './state';
 
 async function main(): Promise<void> {
-  const transactionDate = formatDate(getFirstDayOfCurrentMonth());
+  const store = createStateStore(STATE_FILE);
+  const firstOfMonth = getFirstDayOfCurrentMonth();
+  const month = formatMonth(firstOfMonth);
+  const transactionDate = formatDate(firstOfMonth);
+
+  const cached = store.readState();
+  if (cached?.month === month) {
+    const transferAmountFormatted = cached.transferAmount.toFixed(2);
+    printSummary({
+      transactionDate,
+      fromCurrency: CONFIG.fromCurrency,
+      toCurrency: CONFIG.toCurrency,
+      rate: Number(cached.rate),
+      transferAmountFormatted,
+    });
+    copyToClipboard(transferAmountFormatted);
+    return;
+  }
 
   const { rate, crdhldBillAmt } = await fetchRate({
     url: CONFIG.url,
@@ -53,10 +39,20 @@ async function main(): Promise<void> {
   const transferAmount = computeTransferAmount(crdhldBillAmt, CONFIG.deductionSgd);
   const transferAmountFormatted = transferAmount.toFixed(2);
 
-  console.log(`Transaction Date: ${transactionDate}`);
-  console.log(`Rate: 1 ${CONFIG.fromCurrency} = ${rate.toFixed(4)} ${CONFIG.toCurrency}`);
-  console.log(`Transfer Amount: ${CONFIG.toCurrency} ${transferAmountFormatted}`);
+  store.writeFetchResult({
+    month,
+    rate: String(rate),
+    transferAmount,
+    fetchedAt: new Date().toISOString(),
+  });
 
+  printSummary({
+    transactionDate,
+    fromCurrency: CONFIG.fromCurrency,
+    toCurrency: CONFIG.toCurrency,
+    rate,
+    transferAmountFormatted,
+  });
   copyToClipboard(transferAmountFormatted);
 }
 
