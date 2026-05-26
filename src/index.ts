@@ -13,7 +13,11 @@ async function main(): Promise<void> {
   const transactionDate = formatDate(firstOfMonth);
 
   const cached = store.readState();
-  if (cached?.month === month) {
+  if (
+    cached?.month === month &&
+    cached.rate !== null &&
+    cached.transferAmount !== null
+  ) {
     const transferAmountFormatted = cached.transferAmount.toFixed(2);
     printSummary({
       transactionDate,

@@ -2,9 +2,9 @@ import fs from 'node:fs';
 
 export interface State {
   month: string;
-  rate: string;
-  transferAmount: number;
-  fetchedAt: string;
+  rate: string | null;
+  transferAmount: number | null;
+  fetchedAt: string | null;
   notifiedAt: string | null;
 }
 
@@ -24,6 +24,7 @@ export interface StateStore {
   readState(): State | null;
   writeFetchResult(result: FetchResult): void;
   writeNotifiedAt(update: NotifiedUpdate): void;
+  writeLateNoRateNotified(update: NotifiedUpdate): void;
 }
 
 export function createStateStore(filePath: string): StateStore {
@@ -52,6 +53,16 @@ export function createStateStore(filePath: string): StateStore {
         );
       }
       const next: State = { ...existing, notifiedAt: update.notifiedAt };
+      fs.writeFileSync(filePath, JSON.stringify(next, null, 2));
+    },
+    writeLateNoRateNotified(update: NotifiedUpdate): void {
+      const next: State = {
+        month: update.month,
+        rate: null,
+        transferAmount: null,
+        fetchedAt: null,
+        notifiedAt: update.notifiedAt,
+      };
       fs.writeFileSync(filePath, JSON.stringify(next, null, 2));
     },
   };

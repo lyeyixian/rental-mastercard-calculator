@@ -84,3 +84,40 @@ test('writeNotifiedAt preserves rate, transferAmount, fetchedAt from prior write
     notifiedAt: '2026-06-15T20:00:00+08:00',
   });
 });
+
+test('writeLateNoRateNotified records notifiedAt for a month that never saw a fetch (rate fields null)', () => {
+  const store = createStateStore(freshTempStateFile());
+  store.writeLateNoRateNotified({
+    month: '2026-06',
+    notifiedAt: '2026-06-15T20:00:00+08:00',
+  });
+  assert.deepEqual(store.readState(), {
+    month: '2026-06',
+    rate: null,
+    transferAmount: null,
+    fetchedAt: null,
+    notifiedAt: '2026-06-15T20:00:00+08:00',
+  });
+});
+
+test('writeLateNoRateNotified overwrites a stale-month state (different month, no migration)', () => {
+  const store = createStateStore(freshTempStateFile());
+  store.writeFetchResult({
+    month: '2026-05',
+    rate: '0.3199999',
+    transferAmount: 944.0,
+    fetchedAt: '2026-05-02T08:14:00+08:00',
+  });
+  store.writeLateNoRateNotified({
+    month: '2026-06',
+    notifiedAt: '2026-06-15T20:00:00+08:00',
+  });
+  // The June late-no-rate marker fully replaces the stale May record.
+  assert.deepEqual(store.readState(), {
+    month: '2026-06',
+    rate: null,
+    transferAmount: null,
+    fetchedAt: null,
+    notifiedAt: '2026-06-15T20:00:00+08:00',
+  });
+});

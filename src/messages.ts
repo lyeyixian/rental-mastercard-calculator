@@ -13,6 +13,38 @@ export interface ReminderMessageParams {
   transferAmount: string;
 }
 
+export interface WarningMessageParams {
+  monthName: string;
+  daysUntilReminder: number;
+}
+
+export function formatWarningMessage(params: WarningMessageParams): string {
+  const monthName = escapeMarkdownV2(params.monthName);
+  const days = escapeMarkdownV2(String(params.daysUntilReminder));
+  const dayWord = params.daysUntilReminder === 1 ? 'day' : 'days';
+  return [
+    `⚠️ *Rent prep — ${monthName}*`,
+    '',
+    `No Mastercard FX Rate cached yet\\. ${days} ${dayWord} until rent is due\\.`,
+    'Run `npm start` to retry\\.',
+  ].join('\n');
+}
+
+export interface LateNoRateMessageParams {
+  monthName: string;
+}
+
+export function formatLateNoRateMessage(
+  params: LateNoRateMessageParams,
+): string {
+  const monthName = escapeMarkdownV2(params.monthName);
+  return [
+    `*Rent due today — ${monthName}*`,
+    '',
+    'No Mastercard FX Rate cached\\. Compute manually using Mastercard\\.',
+  ].join('\n');
+}
+
 export function formatReminderMessage(params: ReminderMessageParams): string {
   const monthName = escapeMarkdownV2(params.monthName);
   const transactionDate = escapeMarkdownV2(params.transactionDate);

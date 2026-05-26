@@ -1,7 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { escapeMarkdownV2, formatReminderMessage } from './messages';
+import {
+  escapeMarkdownV2,
+  formatLateNoRateMessage,
+  formatReminderMessage,
+  formatWarningMessage,
+} from './messages';
 
 const sampleReminder = {
   monthName: 'June 2026',
@@ -62,6 +67,81 @@ test('formatReminderMessage renders month name, Transaction Date, and the rent/d
   );
 });
 
+test('formatLateNoRateMessage names the month and instructs the user to compute manually via Mastercard', () => {
+  const out = formatLateNoRateMessage({ monthName: 'June 2026' });
+  assert.ok(
+    out.includes('June 2026'),
+    `expected output to mention month, got: ${out}`,
+  );
+  assert.match(
+    out,
+    /[Mm]astercard/,
+    'expected output to reference Mastercard (the agreed source for the rate)',
+  );
+});
+
+test('formatLateNoRateMessage escapes literal "." in the body so MarkdownV2 parses cleanly', () => {
+  const out = formatLateNoRateMessage({ monthName: 'June 2026' });
+  // Every '.' that appears in literal text (outside emphasis/code spans) must
+  // be backslash-escaped per MarkdownV2 — otherwise Telegram returns 400.
+  assertNoUnescapedReservedChars(out);
+});
+
+test('formatWarningMessage interpolates the day count and month name', () => {
+  const out = formatWarningMessage({
+    monthName: 'June 2026',
+    daysUntilReminder: 5,
+  });
+  assert.ok(
+    out.includes('June 2026'),
+    `expected output to mention month, got: ${out}`,
+  );
+  assert.match(
+    out,
+    /\b5\b/,
+    `expected output to contain the day count '5', got: ${out}`,
+  );
+});
+
+test('formatWarningMessage produces valid MarkdownV2 with all interpolated and literal reserved chars escaped', () => {
+  const out = formatWarningMessage({
+    monthName: 'June 2026',
+    daysUntilReminder: 5,
+  });
+  assertNoUnescapedReservedChars(out);
+});
+
+test('formatWarningMessage renders a different day-count when called with daysUntilReminder=1', () => {
+  // Regression: previously the day count was hard-coded or dropped on the floor.
+  const out = formatWarningMessage({
+    monthName: 'June 2026',
+    daysUntilReminder: 1,
+  });
+  assert.match(
+    out,
+    /\b1\b/,
+    `expected output to contain the day count '1', got: ${out}`,
+  );
+  assert.ok(
+    !/\b5\b/.test(out),
+    `expected day count to actually vary; found '5' when caller passed 1: ${out}`,
+  );
+});
+
 function stripBacktickSpans(text: string): string {
   return text.replace(/`[^`]*`/g, '');
+}
+
+function assertNoUnescapedReservedChars(text: string): void {
+  // Strip backtick code spans (content inside need not be escaped).
+  const withoutCodeSpans = text.replace(/`[^`]*`/g, '');
+  // Strip *...* bold emphasis spans (the * markers are intentional MarkdownV2).
+  const withoutEmphasis = withoutCodeSpans.replace(/\*[^*\n]+\*/g, '');
+  // Any reserved char remaining outside spans must be backslash-escaped.
+  const unescaped = withoutEmphasis.match(/(?<!\\)[_*[\]()~`>#+\-=|{}.!]/g);
+  assert.equal(
+    unescaped,
+    null,
+    `expected no unescaped MarkdownV2 reserved chars, found: ${unescaped?.join(', ')} in: ${JSON.stringify(withoutEmphasis)}`,
+  );
 }
