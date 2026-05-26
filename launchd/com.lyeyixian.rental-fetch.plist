@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Fetch agent: opens a visible Chromium window on login, calls Mastercard's
+  conversion-rates API for the 1st of the current month, and caches the result
+  in local/state.json. The script's self-dedup (see src/state.ts) makes every
+  login after the first successful fetch a millisecond no-op; the script also
+  exits silently on the 1st of the month (PRD #7's "from the 2nd" floor).
+
+  Tokens to replace before installing into ~/Library/LaunchAgents/:
+
+    __REPO_PATH__   absolute path to this repository checkout
+                    (e.g. /Users/yourname/Documents/repo/rental-mastercard-calculator)
+    __PATH__        PATH the agent should inherit. Must include the directories
+                    containing `npm` and `node`. A typical Apple-Silicon value:
+                    /opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin
+                    On Intel macOS without Homebrew under /opt/homebrew, use:
+                    /usr/local/bin:/usr/bin:/bin
+
+  See README "Running autonomously with launchd" for install / verify / uninstall.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.lyeyixian.rental-fetch</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/env</string>
+        <string>npm</string>
+        <string>start</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>__REPO_PATH__</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>__PATH__</string>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>__REPO_PATH__/local/fetch.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>__REPO_PATH__/local/fetch.log</string>
+</dict>
+</plist>

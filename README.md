@@ -62,6 +62,65 @@ The Telegram path delivers the autonomous reminder on the **Reminder Date**. To 
    Treat the bot token as a password. Worst case if leaked: a stranger can spam your own chat with the bot — limited blast radius, but still worth locking down.
 4. **Smoke-test.** Run `npm run smoke:telegram`. A placeholder message should arrive on your Telegram devices. If it doesn't, check the error printed to stderr — the Telegram API response body is included.
 
+## Running autonomously with launchd
+
+The fully autonomous flow — fetch the rate from the 2nd of the month on every login, and deliver a Telegram reminder at 8pm on the 15th — is driven by two macOS `launchd` LaunchAgents whose templates live in [`launchd/`](./launchd):
+
+- **`com.lyeyixian.rental-fetch.plist`** — `RunAtLoad=true`, `KeepAlive=false`. Fires on every login; the fetch script's date guard and state-file dedup make all calls after the first successful fetch of the month effectively a no-op.
+- **`com.lyeyixian.rental-notify.plist`** — `StartCalendarInterval` for day=10, 11, 12, 13, 14, 15 at hour=20. The notify state machine decides what (if anything) to send each evening.
+
+Both plists redirect stdout and stderr to `local/fetch.log` and `local/notify.log`, which the directory-level `local/` gitignore already covers.
+
+### Install
+
+The plist templates contain two placeholder tokens you replace with your own paths:
+
+- `__REPO_PATH__` — absolute path to this repo checkout (e.g. `/Users/yourname/Documents/repo/rental-mastercard-calculator`).
+- `__PATH__` — the `PATH` the agent should inherit. Must include the directories holding `npm` and `node`. On Apple Silicon with Homebrew, typically `/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin`. Without `/opt/homebrew/bin`, use `/usr/local/bin:/usr/bin:/bin`.
+
+```bash
+# Copy the templates into your LaunchAgents directory.
+cp launchd/com.lyeyixian.rental-fetch.plist ~/Library/LaunchAgents/
+cp launchd/com.lyeyixian.rental-notify.plist ~/Library/LaunchAgents/
+
+# Edit both copies — replace __REPO_PATH__ and __PATH__ with real values.
+$EDITOR ~/Library/LaunchAgents/com.lyeyixian.rental-fetch.plist
+$EDITOR ~/Library/LaunchAgents/com.lyeyixian.rental-notify.plist
+
+# Load both agents.
+launchctl load ~/Library/LaunchAgents/com.lyeyixian.rental-fetch.plist
+launchctl load ~/Library/LaunchAgents/com.lyeyixian.rental-notify.plist
+```
+
+The fetch agent runs immediately on `load` (because of `RunAtLoad`). The notify agent waits for its next calendar slot.
+
+### Verify
+
+```bash
+# Both agents should be listed.
+launchctl list | grep lyeyixian
+
+# The fetch run on `load` (or the next login) appends to local/fetch.log —
+# either an actual fetch summary or silent dedup output.
+cat local/fetch.log
+
+# Notify entries appear after the first 20:00 calendar slot fires (10th–15th).
+cat local/notify.log
+```
+
+For an end-to-end smoke test of the full login pipeline, log out and log back in: `local/fetch.log` should record the next invocation.
+
+### Uninstall
+
+```bash
+launchctl unload ~/Library/LaunchAgents/com.lyeyixian.rental-fetch.plist
+launchctl unload ~/Library/LaunchAgents/com.lyeyixian.rental-notify.plist
+rm ~/Library/LaunchAgents/com.lyeyixian.rental-fetch.plist
+rm ~/Library/LaunchAgents/com.lyeyixian.rental-notify.plist
+```
+
+`npm start` and `npm run notify` continue to work after uninstall — the launchd integration is purely a scheduler layer on top of the same scripts.
+
 ## Configuration
 
 All knobs live in the `CONFIG` block near the top of [`src/index.ts`](./src/index.ts):

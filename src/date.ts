@@ -14,3 +14,7 @@ export function formatMonth(date: Date): string {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   return `${year}-${month}`;
 }
+
+export function isFirstOfMonth(now: Date = new Date()): boolean {
+  return now.getDate() === 1;
+}

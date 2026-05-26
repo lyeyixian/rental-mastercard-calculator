@@ -1,12 +1,23 @@
 import { computeTransferAmount } from './computeTransfer';
 import { CONFIG } from './config';
-import { formatDate, formatMonth, getFirstDayOfCurrentMonth } from './date';
+import {
+  formatDate,
+  formatMonth,
+  getFirstDayOfCurrentMonth,
+  isFirstOfMonth,
+} from './date';
 import { fetchRate } from './fetchRate';
 import { copyToClipboard, printSummary } from './output';
 import { STATE_FILE } from './paths';
 import { createStateStore } from './state';
 
 async function main(): Promise<void> {
+  // PRD #7's "from the 2nd" floor: Mastercard may not have published the
+  // 1st-of-month rate yet, so don't even try.
+  if (isFirstOfMonth()) {
+    return;
+  }
+
   const store = createStateStore(STATE_FILE);
   const firstOfMonth = getFirstDayOfCurrentMonth();
   const month = formatMonth(firstOfMonth);

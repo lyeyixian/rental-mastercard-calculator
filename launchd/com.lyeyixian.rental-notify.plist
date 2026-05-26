@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Notify agent: fires at 20:00 on the 10th through the 15th of each month.
+  The state machine in src/notifyDecision.ts decides per-day what to send
+  (warning, reminder, late-no-rate, or no-op).
+
+  Tokens to replace before installing into ~/Library/LaunchAgents/:
+
+    __REPO_PATH__   absolute path to this repository checkout
+                    (e.g. /Users/yourname/Documents/repo/rental-mastercard-calculator)
+    __PATH__        PATH the agent should inherit. Must include the directories
+                    containing `npm` and `node`. A typical Apple-Silicon value:
+                    /opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin
+                    On Intel macOS without Homebrew under /opt/homebrew, use:
+                    /usr/local/bin:/usr/bin:/bin
+
+  See README "Running autonomously with launchd" for install / verify / uninstall.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.lyeyixian.rental-notify</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/env</string>
+        <string>npm</string>
+        <string>run</string>
+        <string>notify</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>__REPO_PATH__</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>__PATH__</string>
+    </dict>
+
+    <key>StartCalendarInterval</key>
+    <array>
+        <dict>
+            <key>Day</key>
+            <integer>10</integer>
+            <key>Hour</key>
+            <integer>20</integer>
+            <key>Minute</key>
+            <integer>0</integer>
+        </dict>
+        <dict>
+            <key>Day</key>
+            <integer>11</integer>
+            <key>Hour</key>
+            <integer>20</integer>
+            <key>Minute</key>
+            <integer>0</integer>
+        </dict>
+        <dict>
+            <key>Day</key>
+            <integer>12</integer>
+            <key>Hour</key>
+            <integer>20</integer>
+            <key>Minute</key>
+            <integer>0</integer>
+        </dict>
+        <dict>
+            <key>Day</key>
+            <integer>13</integer>
+            <key>Hour</key>
+            <integer>20</integer>
+            <key>Minute</key>
+            <integer>0</integer>
+        </dict>
+        <dict>
+            <key>Day</key>
+            <integer>14</integer>
+            <key>Hour</key>
+            <integer>20</integer>
+            <key>Minute</key>
+            <integer>0</integer>
+        </dict>
+        <dict>
+            <key>Day</key>
+            <integer>15</integer>
+            <key>Hour</key>
+            <integer>20</integer>
+            <key>Minute</key>
+            <integer>0</integer>
+        </dict>
+    </array>
+
+    <key>StandardOutPath</key>
+    <string>__REPO_PATH__/local/notify.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>__REPO_PATH__/local/notify.log</string>
+</dict>
+</plist>
