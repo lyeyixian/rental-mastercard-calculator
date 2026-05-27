@@ -1,14 +1,14 @@
-import { CONFIG } from './config';
+import { CONFIG } from '../config';
+import { STATE_FILE } from '../paths';
 import {
   formatDate,
   formatMonth,
   getFirstDayOfCurrentMonth,
   isFirstOfMonth,
-} from './date';
+} from '../shared/date';
+import { createStateStore } from '../shared/state';
 import { fetchRate } from './fetchRate';
 import { copyToClipboard, printSummary } from './output';
-import { STATE_FILE } from './paths';
-import { createStateStore } from './state';
 
 async function main(): Promise<void> {
   // PRD #7's "from the 2nd" floor: Mastercard may not have published the

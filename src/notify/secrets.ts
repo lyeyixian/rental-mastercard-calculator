@@ -1,4 +1,4 @@
-import { ENV_FILE } from './paths';
+import { ENV_FILE } from '../paths';
 
 export interface Secrets {
   telegramBotToken: string;

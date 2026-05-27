@@ -1,5 +1,5 @@
-import { formatMonth } from './date';
-import { State } from './state';
+import { formatMonth } from '../shared/date';
+import { State } from '../shared/state';
 
 const REMINDER_DAY = 15;
 const WARNING_START_DAY = 10;

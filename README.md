@@ -137,7 +137,7 @@ rm ~/Library/LaunchAgents/com.lyeyixian.rental-notify.plist
 
 ## Configuration
 
-All knobs live in the `CONFIG` block near the top of [`src/index.ts`](./src/index.ts):
+All knobs live in [`src/config.ts`](./src/config.ts):
 
 | Field               | Default | Meaning |
 |---------------------|---------|---------|

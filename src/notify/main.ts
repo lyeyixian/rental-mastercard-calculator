@@ -1,13 +1,13 @@
-import { CONFIG } from './config';
+import { CONFIG } from '../config';
+import { STATE_FILE } from '../paths';
+import { createStateStore, StateStore } from '../shared/state';
 import {
   formatLateNoRateMessage,
   formatReminderMessage,
   formatWarningMessage,
 } from './messages';
 import { decideNotifyAction, NotifyAction } from './notifyDecision';
-import { STATE_FILE } from './paths';
 import { loadSecrets } from './secrets';
-import { createStateStore, StateStore } from './state';
 import { sendMessage } from './telegram';
 
 const MONTH_NAMES = [

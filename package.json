@@ -5,9 +5,9 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
-    "start": "ts-node src/index.ts",
-    "notify": "ts-node src/notify.ts",
-    "test": "node --require ts-node/register --test 'src/*.test.ts'"
+    "start": "ts-node src/fetch/main.ts",
+    "notify": "ts-node src/notify/main.ts",
+    "test": "node --require ts-node/register --test 'src/**/*.test.ts'"
   },
   "repository": {
     "type": "git",

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { decideNotifyAction } from './notifyDecision';
-import { State } from './state';
+import { State } from '../shared/state';
 
 const cachedJune: State = {
   month: '2026-06',
