@@ -64,9 +64,9 @@ The Telegram path delivers the autonomous reminder on the **Reminder Date**. To 
 
 ## Running autonomously with launchd
 
-The fully autonomous flow — fetch the rate from the 2nd of the month on every login, and deliver a Telegram reminder at 8pm on the 15th — is driven by two macOS `launchd` LaunchAgents whose templates live in [`launchd/`](./launchd):
+The fully autonomous flow — fetch the rate from the 2nd of the month, daily at 19:00 (and on login), and deliver a Telegram reminder at 8pm on the 15th — is driven by two macOS `launchd` LaunchAgents whose templates live in [`launchd/`](./launchd):
 
-- **`com.lyeyixian.rental-fetch.plist`** — `RunAtLoad=true`, `KeepAlive=false`. Fires on every login; the fetch script's date guard and state-file dedup make all calls after the first successful fetch of the month effectively a no-op.
+- **`com.lyeyixian.rental-fetch.plist`** — `RunAtLoad=true` plus `StartCalendarInterval` at 19:00 daily. Fires once per day (and on login); the fetch script's date guard and state-file dedup make all firings after the first successful fetch of the month effectively a no-op. See [ADR-0007](./docs/adr/0007-fetch-daily-calendar-trigger.md) for why daily rather than login-only.
 - **`com.lyeyixian.rental-notify.plist`** — `StartCalendarInterval` for day=10, 11, 12, 13, 14, 15 at hour=20. The notify state machine decides what (if anything) to send each evening.
 
 Both plists redirect stdout and stderr to `local/fetch.log` and `local/notify.log`, which the directory-level `local/` gitignore already covers.
@@ -106,7 +106,7 @@ launchctl load ~/Library/LaunchAgents/com.lyeyixian.rental-fetch.plist
 launchctl load ~/Library/LaunchAgents/com.lyeyixian.rental-notify.plist
 ```
 
-The fetch agent runs immediately on `load` (because of `RunAtLoad`). The notify agent waits for its next calendar slot.
+The fetch agent runs immediately on `load` (because of `RunAtLoad`) and then daily at 19:00 thereafter. The notify agent waits for its next calendar slot.
 
 ### Verify
 
@@ -114,15 +114,15 @@ The fetch agent runs immediately on `load` (because of `RunAtLoad`). The notify 
 # Both agents should be listed.
 launchctl list | grep lyeyixian
 
-# The fetch run on `load` (or the next login) appends to local/fetch.log —
-# either an actual fetch summary or silent dedup output.
+# The fetch run on `load` (or the next 19:00, or the next login) appends to
+# local/fetch.log — either an actual fetch summary or silent dedup output.
 cat local/fetch.log
 
 # Notify entries appear after the first 20:00 calendar slot fires (10th–15th).
 cat local/notify.log
 ```
 
-For an end-to-end smoke test of the full login pipeline, log out and log back in: `local/fetch.log` should record the next invocation.
+For an end-to-end smoke test of the fetch pipeline, either log out and log back in (`RunAtLoad`) or wait for the next 19:00 with the laptop awake: `local/fetch.log` should record the next invocation.
 
 ### Uninstall
 

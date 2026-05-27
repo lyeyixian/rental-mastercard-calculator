@@ -1,5 +1,7 @@
 # Decouple rate fetch from notification via a state file
 
+> _Trigger mechanism superseded by [ADR-0007](./0007-fetch-daily-calendar-trigger.md). The decouple-via-state-file decision in this ADR stands; only the choice of launchd trigger (login-event → daily calendar interval) has been revised. Read "login attempts" / "login-triggered" below as "daily 19:00 firings" under current behaviour._
+
 v2 sends a Telegram reminder on the Reminder Date with the Transfer Amount. The fragile operation (Mastercard rate fetch — Akamai might block on any given day) and the user-facing operation (Telegram push) are split into two scheduled jobs that communicate via a JSON state file at `local/state.json`. This gives the fetch a 13-day window (the 2nd through the 15th) to succeed across many login attempts, so an Akamai block on the Reminder Date itself cannot silently kill the reminder.
 
 ## Considered Options

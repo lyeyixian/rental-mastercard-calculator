@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Fetch agent: opens a visible Chromium window on login, calls Mastercard's
-  conversion-rates API for the 1st of the current month, and caches the result
-  in local/state.json. The script's self-dedup (see src/state.ts) makes every
-  login after the first successful fetch a millisecond no-op; the script also
-  exits silently on the 1st of the month (PRD #7's "from the 2nd" floor).
+  Fetch agent: opens a visible Chromium window daily at 19:00 (and on login),
+  calls Mastercard's conversion-rates API for the 1st of the current month,
+  and caches the result in local/state.json. The script's self-dedup (see
+  src/state.ts) makes every firing after the first successful fetch of the
+  month a millisecond no-op; the script also exits silently on the 1st of
+  the month (PRD #7's "from the 2nd" floor). See ADR-0007 for why the trigger
+  is daily-calendar rather than login-only.
 
   Tokens to replace before installing into ~/Library/LaunchAgents/:
 
@@ -45,6 +47,14 @@
 
     <key>KeepAlive</key>
     <false/>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>19</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
 
     <key>StandardOutPath</key>
     <string>__REPO_PATH__/local/fetch.log</string>

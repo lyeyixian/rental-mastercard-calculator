@@ -17,4 +17,4 @@ Mastercard's converter is protected by Akamai Bot Manager, which aggressively bl
 
 ## Revisited 2026-05-24 (v2 planning)
 
-Re-evaluated against switching to a stealth-headless library (`patchright`, `playwright-extra` + stealth, `camoufox`) now that v2 introduces a daemon-style trigger. Confirmed: stay headed. The login-trigger pattern with self-dedup checked *before* Chromium opens (see [ADR-0004](./0004-decouple-fetch-from-notify.md)) preserves the once-per-month popup property — the visible window only appears the first time the script successfully fetches each month, not on every login.
+Re-evaluated against switching to a stealth-headless library (`patchright`, `playwright-extra` + stealth, `camoufox`) now that v2 introduces a daemon-style trigger. Confirmed: stay headed. The launchd-driven trigger with self-dedup checked *before* Chromium opens (see [ADR-0004](./0004-decouple-fetch-from-notify.md) and [ADR-0007](./0007-fetch-daily-calendar-trigger.md)) preserves the once-per-month popup property — the visible window only appears the first time the script successfully fetches each month, not on every firing.
