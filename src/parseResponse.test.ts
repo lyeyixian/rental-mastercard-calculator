@@ -12,12 +12,11 @@ const validRaw = {
   transCurr: 'MYR',
 };
 
-test('parseRateResponse: happy path returns parsed rate, crdhldBillAmt, fxDate', () => {
+test('parseRateResponse: happy path returns parsed rate and crdhldBillAmt', () => {
   const result = parseRateResponse(validRaw, '2026-02-01', 2950);
   assert.deepEqual(result, {
     rate: 0.3238726,
     crdhldBillAmt: 955.4241700,
-    fxDate: '2026-02-01',
   });
 });
 

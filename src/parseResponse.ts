@@ -1,7 +1,6 @@
 export interface ParsedRateResponse {
   rate: number;
   crdhldBillAmt: number;
-  fxDate: string;
 }
 
 export function parseRateResponse(
@@ -40,6 +39,5 @@ export function parseRateResponse(
   return {
     rate: Number(obj.conversionRate),
     crdhldBillAmt,
-    fxDate: String(obj.fxDate),
   };
 }
