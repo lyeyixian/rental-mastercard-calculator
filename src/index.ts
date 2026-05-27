@@ -53,7 +53,8 @@ async function main(): Promise<void> {
   const transferAmount = crdhldBillAmt - CONFIG.deductionSgd;
   const transferAmountFormatted = transferAmount.toFixed(2);
 
-  store.writeFetchResult({
+  store.apply({
+    kind: 'rateFetched',
     month,
     rate: String(rate),
     transferAmount,

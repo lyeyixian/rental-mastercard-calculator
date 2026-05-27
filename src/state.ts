@@ -8,62 +8,72 @@ export interface State {
   notifiedAt: string | null;
 }
 
-export interface FetchResult {
-  month: string;
-  rate: string;
-  transferAmount: number;
-  fetchedAt: string;
-}
-
-export interface NotifiedUpdate {
-  month: string;
-  notifiedAt: string;
-}
+export type StateEvent =
+  | {
+      kind: 'rateFetched';
+      month: string;
+      rate: string;
+      transferAmount: number;
+      fetchedAt: string;
+    }
+  | { kind: 'reminderSent'; month: string; notifiedAt: string }
+  | { kind: 'lateNoRateSent'; month: string; notifiedAt: string };
 
 export interface StateStore {
   readState(): State | null;
-  writeFetchResult(result: FetchResult): void;
-  writeNotifiedAt(update: NotifiedUpdate): void;
-  writeLateNoRateNotified(update: NotifiedUpdate): void;
+  apply(event: StateEvent): void;
 }
 
 export function createStateStore(filePath: string): StateStore {
-  return {
-    readState(): State | null {
-      if (!fs.existsSync(filePath)) {
-        return null;
+  function readState(): State | null {
+    if (!fs.existsSync(filePath)) {
+      return null;
+    }
+    const raw = fs.readFileSync(filePath, 'utf8');
+    return JSON.parse(raw) as State;
+  }
+
+  function writeState(state: State): void {
+    fs.writeFileSync(filePath, JSON.stringify(state, null, 2));
+  }
+
+  function apply(event: StateEvent): void {
+    switch (event.kind) {
+      case 'rateFetched':
+        writeState({
+          month: event.month,
+          rate: event.rate,
+          transferAmount: event.transferAmount,
+          fetchedAt: event.fetchedAt,
+          notifiedAt: null,
+        });
+        return;
+      case 'reminderSent': {
+        const existing = readState();
+        if (existing === null) {
+          throw new Error(
+            `apply(reminderSent): no existing state at ${filePath}; rateFetched must run first.`,
+          );
+        }
+        if (existing.month !== event.month) {
+          throw new Error(
+            `apply(reminderSent): month mismatch (state has ${existing.month}, got ${event.month}).`,
+          );
+        }
+        writeState({ ...existing, notifiedAt: event.notifiedAt });
+        return;
       }
-      const raw = fs.readFileSync(filePath, 'utf8');
-      return JSON.parse(raw) as State;
-    },
-    writeFetchResult(result: FetchResult): void {
-      const next: State = { ...result, notifiedAt: null };
-      fs.writeFileSync(filePath, JSON.stringify(next, null, 2));
-    },
-    writeNotifiedAt(update: NotifiedUpdate): void {
-      const existing = this.readState();
-      if (existing === null) {
-        throw new Error(
-          `writeNotifiedAt: no existing state at ${filePath}; writeFetchResult must run first.`,
-        );
-      }
-      if (existing.month !== update.month) {
-        throw new Error(
-          `writeNotifiedAt: month mismatch (state has ${existing.month}, got ${update.month}).`,
-        );
-      }
-      const next: State = { ...existing, notifiedAt: update.notifiedAt };
-      fs.writeFileSync(filePath, JSON.stringify(next, null, 2));
-    },
-    writeLateNoRateNotified(update: NotifiedUpdate): void {
-      const next: State = {
-        month: update.month,
-        rate: null,
-        transferAmount: null,
-        fetchedAt: null,
-        notifiedAt: update.notifiedAt,
-      };
-      fs.writeFileSync(filePath, JSON.stringify(next, null, 2));
-    },
-  };
+      case 'lateNoRateSent':
+        writeState({
+          month: event.month,
+          rate: null,
+          transferAmount: null,
+          fetchedAt: null,
+          notifiedAt: event.notifiedAt,
+        });
+        return;
+    }
+  }
+
+  return { readState, apply };
 }

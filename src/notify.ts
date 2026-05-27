@@ -66,10 +66,10 @@ function persistNotifiedAt(
 ): void {
   switch (action.kind) {
     case 'sendReminder':
-      store.writeNotifiedAt({ month: action.state.month, notifiedAt });
+      store.apply({ kind: 'reminderSent', month: action.state.month, notifiedAt });
       return;
     case 'sendLateNoRate':
-      store.writeLateNoRateNotified({ month: action.month, notifiedAt });
+      store.apply({ kind: 'lateNoRateSent', month: action.month, notifiedAt });
       return;
     case 'sendWarning':
       // Intentional: warning never sets notifiedAt — the reminder must still
