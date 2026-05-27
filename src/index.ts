@@ -1,4 +1,3 @@
-import { computeTransferAmount } from './computeTransfer';
 import { CONFIG } from './config';
 import {
   formatDate,
@@ -51,7 +50,7 @@ async function main(): Promise<void> {
     amount: CONFIG.amount,
   });
 
-  const transferAmount = computeTransferAmount(crdhldBillAmt, CONFIG.deductionSgd);
+  const transferAmount = crdhldBillAmt - CONFIG.deductionSgd;
   const transferAmountFormatted = transferAmount.toFixed(2);
 
   store.writeFetchResult({
