@@ -26,7 +26,7 @@
   },
   "homepage": "https://github.com/lyeyixian/rental-mastercard-calculator#readme",
   "dependencies": {
-    "playwright": "^1.59.1"
+    "playwright": "^1.61.1"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",
