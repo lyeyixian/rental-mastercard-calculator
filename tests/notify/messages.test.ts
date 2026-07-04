@@ -6,7 +6,7 @@ import {
   formatLateNoRateMessage,
   formatReminderMessage,
   formatWarningMessage,
-} from './messages';
+} from '../../src/notify/messages';
 
 const sampleReminder = {
   monthName: 'June 2026',

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { resolveDate } from './resolveDate';
+import { resolveDate } from '../../src/notify/resolveDate';
 
 const FALLBACK = new Date(2026, 6, 4, 9, 30); // 2026-07-04 09:30 local
 

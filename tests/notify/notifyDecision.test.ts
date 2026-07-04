@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { decideNotifyAction } from './notifyDecision';
-import { State } from '../shared/state';
+import { decideNotifyAction } from '../../src/notify/notifyDecision';
+import { State } from '../../src/shared/state';
 
 const cachedJune: State = {
   month: '2026-06',

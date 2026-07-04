@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { createStateStore } from './state';
+import { createStateStore } from '../../src/shared/state';
 
 function freshTempStateFile(): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rmc-state-'));

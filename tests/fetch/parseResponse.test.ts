@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { parseRateResponse } from './parseResponse';
+import { parseRateResponse } from '../../src/fetch/parseResponse';
 
 const validRaw = {
   conversionRate: '0.3238726',

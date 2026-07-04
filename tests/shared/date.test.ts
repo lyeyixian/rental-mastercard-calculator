@@ -6,7 +6,7 @@ import {
   formatMonth,
   getFirstDayOfCurrentMonth,
   isFirstOfMonth,
-} from './date';
+} from '../../src/shared/date';
 
 test('formatDate zero-pads single-digit month', () => {
   assert.equal(formatDate(new Date(2026, 0, 1)), '2026-01-01');
