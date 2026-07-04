@@ -38,13 +38,10 @@ pnpm is used instead of npm to harden the install path against npm-registry supp
 
 ```bash
 # Fetch the Mastercard FX Rate, compute the Transfer Amount, copy it to the clipboard.
-npm start
-
-# Send a placeholder Telegram message to confirm bot setup works end-to-end.
-npm run smoke:telegram
+pnpm start
 
 # Run the unit tests on the pure modules (date, parseResponse, computeTransfer).
-npm test
+pnpm test
 ```
 
 On a successful run, the script prints the Transaction Date, the Mastercard FX Rate, and the Transfer Amount, and (on macOS) puts the Transfer Amount on the clipboard ready to paste into DBS.
@@ -62,7 +59,8 @@ The Telegram path delivers the autonomous reminder on the **Reminder Date**. To 
    chmod 600 local/.env
    ```
    Treat the bot token as a password. Worst case if leaked: a stranger can spam your own chat with the bot — limited blast radius, but still worth locking down.
-4. **Smoke-test.** Run `npm run smoke:telegram`. A placeholder message should arrive on your Telegram devices. If it doesn't, check the error printed to stderr — the Telegram API response body is included.
+
+The reminder itself is delivered by the notify agent on its scheduled evenings (see "Running autonomously with launchd" below); there is no separate placeholder-message step.
 
 ## Running autonomously with launchd
 
