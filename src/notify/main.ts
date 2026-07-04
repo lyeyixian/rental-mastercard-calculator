@@ -1,5 +1,6 @@
 import { CONFIG } from '../config';
 import { STATE_FILE } from '../paths';
+import { formatDate } from '../shared/date';
 import { createStateStore, StateStore } from '../shared/state';
 import {
   formatLateNoRateMessage,
@@ -7,6 +8,7 @@ import {
   formatWarningMessage,
 } from './messages';
 import { decideNotifyAction, NotifyAction } from './notifyDecision';
+import { resolveDate } from './resolveDate';
 import { loadSecrets } from './secrets';
 import { sendMessage } from './telegram';
 
@@ -92,8 +94,13 @@ function describeAction(action: NotifyAction): string {
 }
 
 async function main(): Promise<void> {
+  const { date, testMode } = resolveDate(process.env.NOTIFY_TEST_DATE, new Date());
+  if (testMode) {
+    console.log(`Test mode: treating today as ${formatDate(date)}.`);
+  }
+
   const store = createStateStore(STATE_FILE);
-  const action = decideNotifyAction(new Date(), store.readState());
+  const action = decideNotifyAction(date, store.readState());
 
   console.log(describeAction(action));
 
@@ -112,6 +119,11 @@ async function main(): Promise<void> {
   });
 
   console.log('Telegram message sent.');
+
+  if (testMode) {
+    console.log('Test mode: skipping state write (notifiedAt unchanged).');
+    return;
+  }
 
   persistNotifiedAt(store, action, new Date().toISOString());
 }

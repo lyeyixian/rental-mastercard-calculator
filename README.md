@@ -62,6 +62,17 @@ The Telegram path delivers the autonomous reminder on the **Reminder Date**. To 
 
 The reminder itself is delivered by the notify agent on its scheduled evenings (see "Running autonomously with launchd" below); there is no separate placeholder-message step.
 
+### Testing the reminder on demand
+
+`pnpm notify` only acts on the scheduled days (a warning on the 10th–14th, the reminder on the 15th), and prints `Nothing to send today.` otherwise. To exercise the full decision → render → **real Telegram send** on any date, set `NOTIFY_TEST_DATE`:
+
+```bash
+NOTIFY_TEST_DATE=2026-07-15 pnpm notify   # reminder branch (needs a cached rate for that month)
+NOTIFY_TEST_DATE=2026-07-12 pnpm notify   # warning branch
+```
+
+`NOTIFY_TEST_DATE` runs in **test mode**: it sends a real message so you can confirm your bot token and chat ID work, but it deliberately **skips the state write**, so a test run never sets `notifiedAt` and can't suppress the genuine scheduled reminder. The value must be a real `YYYY-MM-DD` calendar date — a malformed or impossible date (e.g. `2026-02-30`) exits with an error rather than guessing.
+
 ## Running autonomously with launchd
 
 The fully autonomous flow — fetch the rate from the 2nd of the month, daily at 19:00 (and on login), and deliver a Telegram reminder at 8pm on the 15th — is driven by two macOS `launchd` LaunchAgents whose templates live in [`launchd/`](./launchd):
