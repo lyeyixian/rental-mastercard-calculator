@@ -11,9 +11,10 @@
 #   scripts/install-launchd.sh           # render, write, and load
 #   scripts/install-launchd.sh --dry-run # print the rendered plists; touch nothing
 #
-# Override the embedded PATH (defaults to the directories holding npm + node
-# plus /usr/bin:/bin):
-#   LAUNCHD_PATH="/opt/homebrew/bin:/usr/bin:/bin" scripts/install-launchd.sh
+# Override the auto-detected values if the guesses are wrong for your setup:
+#   PNPM_BIN="/opt/homebrew/bin/pnpm" scripts/install-launchd.sh   # absolute pnpm path
+#   LAUNCHD_PATH="/opt/homebrew/bin:/usr/bin:/bin" scripts/install-launchd.sh   # agent PATH
+# (LAUNCHD_PATH defaults to the directories holding pnpm + node plus /usr/bin:/bin.)
 #
 set -euo pipefail
 
@@ -27,29 +28,40 @@ if [ "${1:-}" = "--dry-run" ]; then
 fi
 
 resolve_path() {
-    local npm_bin node_bin npm_dir node_dir result
-    npm_bin="$(command -v npm 2>/dev/null || true)"
+    local pnpm_bin node_bin pnpm_dir node_dir result
+    pnpm_bin="$(command -v pnpm 2>/dev/null || true)"
     node_bin="$(command -v node 2>/dev/null || true)"
-    if [ -z "$npm_bin" ] || [ -z "$node_bin" ]; then
-        echo "error: cannot find npm or node on \$PATH." >&2
-        echo "Install Node.js (e.g. brew install node) or set LAUNCHD_PATH explicitly." >&2
+    if [ -z "$pnpm_bin" ] || [ -z "$node_bin" ]; then
+        echo "error: cannot find pnpm or node on \$PATH." >&2
+        echo "Install pnpm (e.g. brew install pnpm) and Node.js, or set LAUNCHD_PATH explicitly." >&2
         exit 1
     fi
-    npm_dir="$(dirname "$npm_bin")"
+    pnpm_dir="$(dirname "$pnpm_bin")"
     node_dir="$(dirname "$node_bin")"
-    result="$npm_dir:$node_dir:/usr/bin:/bin"
+    result="$pnpm_dir:$node_dir:/usr/bin:/bin"
     printf %s "$result" | awk -v RS=: -v ORS=: '$0 != "" && !seen[$0]++' | sed 's/:$//'
 }
 
 render() {
     # Substitute placeholders and strip the leading <!-- ... --> template comment.
-    sed -e "s|__REPO_PATH__|$REPO_PATH|g" -e "s|__PATH__|$LAUNCHD_PATH|g" "$1" \
+    sed -e "s|__REPO_PATH__|$REPO_PATH|g" -e "s|__PNPM__|$PNPM_BIN|g" -e "s|__PATH__|$LAUNCHD_PATH|g" "$1" \
         | sed '/^<!--$/,/^-->$/d'
 }
 
 LAUNCHD_PATH="${LAUNCHD_PATH:-$(resolve_path)}"
 
+# launchd resolves ProgramArguments[0] without searching PATH, so the plist needs
+# pnpm's absolute path — and Homebrew's location is machine-specific (Apple Silicon
+# /opt/homebrew/bin vs Intel /usr/local/bin).
+PNPM_BIN="${PNPM_BIN:-$(command -v pnpm 2>/dev/null || true)}"
+if [ -z "$PNPM_BIN" ]; then
+    echo "error: cannot find pnpm on \$PATH." >&2
+    echo "Install it (brew install pnpm) or set PNPM_BIN to its absolute path." >&2
+    exit 1
+fi
+
 echo "Repo path:        $REPO_PATH"
+echo "pnpm binary:      $PNPM_BIN"
 echo "Embedded PATH:    $LAUNCHD_PATH"
 echo "LaunchAgents dir: $LAUNCH_AGENTS"
 echo "Mode:             $([ "$DRY_RUN" = 1 ] && echo dry-run || echo install)"

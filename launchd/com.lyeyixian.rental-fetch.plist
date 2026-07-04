@@ -12,10 +12,14 @@
 
     __REPO_PATH__   absolute path to this repository checkout
                     (e.g. /Users/yourname/Documents/repo/rental-mastercard-calculator)
-    __PATH__        PATH the agent should inherit. Must include the directories
-                    containing `npm` and `node`. A typical Apple-Silicon value:
+    __PNPM__        absolute path to the pnpm binary (find it with `command -v pnpm`;
+                    e.g. /opt/homebrew/bin/pnpm on Apple Silicon, /usr/local/bin/pnpm
+                    on Intel). launchd needs an absolute path here — unlike a shell it
+                    does not search PATH to resolve the command name.
+    __PATH__        PATH the agent should inherit. Must include the directory holding
+                    `node`, which pnpm shells out to. A typical Apple-Silicon value:
                     /opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin
-                    On Intel macOS without Homebrew under /opt/homebrew, use:
+                    On Intel macOS, use:
                     /usr/local/bin:/usr/bin:/bin
 
   See README "Running autonomously with launchd" for install / verify / uninstall.
@@ -28,8 +32,7 @@
 
     <key>ProgramArguments</key>
     <array>
-        <string>/usr/bin/env</string>
-        <string>npm</string>
+        <string>__PNPM__</string>
         <string>start</string>
     </array>
 

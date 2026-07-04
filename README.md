@@ -81,23 +81,24 @@ scripts/install-launchd.sh             # install + load
 scripts/uninstall-launchd.sh           # unload + remove
 ```
 
-The script auto-detects the directories holding `npm` and `node` and embeds them as the agent's `PATH`. Override with `LAUNCHD_PATH=...` if the detected value is wrong for your setup (e.g. `LAUNCHD_PATH="/opt/homebrew/bin:/usr/bin:/bin"`).
+The script auto-detects pnpm's absolute path and the directory holding `node`, wiring the former into the plist's `ProgramArguments` and the latter into its `PATH`. Override with `PNPM_BIN=...` (pnpm's path) or `LAUNCHD_PATH=...` (the agent `PATH`) if a detected value is wrong for your setup (e.g. `LAUNCHD_PATH="/opt/homebrew/bin:/usr/bin:/bin"`).
 
 If you'd rather see exactly what goes into `~/Library/LaunchAgents/`, the manual procedure below is the same set of steps spelled out by hand.
 
 ### Install (manual)
 
-The plist templates contain two placeholder tokens you replace with your own paths:
+The plist templates contain three placeholder tokens you replace with your own paths:
 
 - `__REPO_PATH__` — absolute path to this repo checkout (e.g. `/Users/yourname/Documents/repo/rental-mastercard-calculator`).
-- `__PATH__` — the `PATH` the agent should inherit. Must include the directories holding `npm` and `node`. On Apple Silicon with Homebrew, typically `/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin`. Without `/opt/homebrew/bin`, use `/usr/local/bin:/usr/bin:/bin`.
+- `__PNPM__` — absolute path to the `pnpm` binary (find it with `command -v pnpm`; on Apple Silicon this is typically `/opt/homebrew/bin/pnpm`, on Intel `/usr/local/bin/pnpm`). launchd needs an absolute path here — unlike a shell, it doesn't search `PATH` to resolve the command name.
+- `__PATH__` — the `PATH` the agent should inherit. Must include the directory holding `node` (pnpm shells out to it). On Apple Silicon with Homebrew, typically `/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin`.
 
 ```bash
 # Copy the templates into your LaunchAgents directory.
 cp launchd/com.lyeyixian.rental-fetch.plist ~/Library/LaunchAgents/
 cp launchd/com.lyeyixian.rental-notify.plist ~/Library/LaunchAgents/
 
-# Edit both copies — replace __REPO_PATH__ and __PATH__ with real values.
+# Edit both copies — replace __REPO_PATH__, __PNPM__, and __PATH__ with real values.
 $EDITOR ~/Library/LaunchAgents/com.lyeyixian.rental-fetch.plist
 $EDITOR ~/Library/LaunchAgents/com.lyeyixian.rental-notify.plist
 
