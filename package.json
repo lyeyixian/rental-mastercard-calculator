@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "description": "A program to calculate monthly rental using month-start FX rate",
   "main": "dist/index.js",
+  "engines": {
+    "node": ">=20.12",
+    "pnpm": ">=11"
+  },
   "scripts": {
     "build": "tsc",
     "start": "ts-node src/fetch/main.ts",

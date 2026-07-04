@@ -6,7 +6,7 @@ Per-machine state (`local/state.json`) and secrets (`local/.env`, holding Telegr
 
 - **`~/.rental-secrets` + `~/.rental-state.json` (the v2 plan's original choice)** — Rejected. Stronger separation and survives `rm -rf` of the repo, but scatters project-related files across `$HOME` for a personal one-laptop project where that resilience has no practical payoff.
 - **macOS Keychain for secrets** — Rejected. The Telegram bot token's worst case is the bot spamming the user's own chat. Keychain adds CLI complexity and occasional unlock prompts for negligible benefit at that blast radius.
-- **`EnvironmentVariables` block in the launchd plist** — Rejected. Manual `npm start` from a terminal would not pick them up unless also exported in the shell, forcing two credential-load code paths.
+- **`EnvironmentVariables` block in the launchd plist** — Rejected. Manual `pnpm start` from a terminal would not pick them up unless also exported in the shell, forcing two credential-load code paths.
 - **In-repo `local/` with directory-level gitignore** — Chosen.
 
 ## Consequences

@@ -26,7 +26,7 @@ export function formatWarningMessage(params: WarningMessageParams): string {
     `⚠️ *Rent prep — ${monthName}*`,
     '',
     `No Mastercard FX Rate cached yet\\. ${days} ${dayWord} until rent is due\\.`,
-    'Run `npm start` to retry\\.',
+    'Run `pnpm start` to retry\\.',
   ].join('\n');
 }
 

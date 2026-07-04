@@ -23,14 +23,16 @@ The rationale for each of these choices lives in the ADRs:
 ## Requirements
 
 - [Node.js](https://nodejs.org/) ≥ 20.12 (uses the built-in `process.loadEnvFile()`)
-- [npm](https://www.npmjs.com/)
+- [pnpm](https://pnpm.io/) ≥ 11 (`brew install pnpm`, or see [pnpm.io/installation](https://pnpm.io/installation))
 
 ## Setup
 
 ```bash
-npm install
-npx playwright install chromium
+pnpm install
+pnpm exec playwright install chromium   # explicit: pnpm doesn't run Playwright's postinstall by default
 ```
+
+pnpm is used instead of npm to harden the install path against npm-registry supply-chain attacks — see [ADR-0008](./docs/adr/0008-adopt-pnpm.md).
 
 ## Usage
 
@@ -133,7 +135,7 @@ rm ~/Library/LaunchAgents/com.lyeyixian.rental-fetch.plist
 rm ~/Library/LaunchAgents/com.lyeyixian.rental-notify.plist
 ```
 
-`npm start` and `npm run notify` continue to work after uninstall — the launchd integration is purely a scheduler layer on top of the same scripts.
+`pnpm start` and `pnpm run notify` continue to work after uninstall — the launchd integration is purely a scheduler layer on top of the same scripts.
 
 ## Configuration
 
@@ -161,6 +163,6 @@ The clipboard step shells out to `pbcopy`, which is **macOS-only**. On Linux or 
 
 ## Failure modes
 
-- **`Timed out waiting for #calculate-button. Akamai likely blocked the request — please retry.`** — The converter page never rendered the readiness selector within the timeout. Usually transient; just run `npm start` again. If it keeps happening, Akamai may have escalated detection of headed Chromium (see ADR-0002 for the fallback path).
+- **`Timed out waiting for #calculate-button. Akamai likely blocked the request — please retry.`** — The converter page never rendered the readiness selector within the timeout. Usually transient; just run `pnpm start` again. If it keeps happening, Akamai may have escalated detection of headed Chromium (see ADR-0002 for the fallback path).
 - **`parseRateResponse: <reason>. raw=<json>`** — Mastercard's API returned a 200 but the JSON didn't match the expected shape (see ADR-0003 for the recorded schema). The raw response is included in the error message for debugging; the schema in ADR-0003 is the starting point for re-detection.
 - **`HTTP <status>`** — The API call itself failed. Retry; if it persists, check `url` and whether Mastercard has changed the endpoint.
