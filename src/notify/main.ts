@@ -78,9 +78,24 @@ function persistNotifiedAt(
   }
 }
 
+function describeAction(action: NotifyAction): string {
+  switch (action.kind) {
+    case 'noop':
+      return 'Nothing to send today.';
+    case 'sendReminder':
+      return `Sending rent reminder for ${action.state.month}.`;
+    case 'sendWarning':
+      return `Sending warning for ${action.month} (${action.daysUntilReminder} day(s) until reminder).`;
+    case 'sendLateNoRate':
+      return `Sending late-no-rate notice for ${action.month}.`;
+  }
+}
+
 async function main(): Promise<void> {
   const store = createStateStore(STATE_FILE);
   const action = decideNotifyAction(new Date(), store.readState());
+
+  console.log(describeAction(action));
 
   if (action.kind === 'noop') {
     return;
@@ -95,6 +110,8 @@ async function main(): Promise<void> {
     text,
     parseMode: 'MarkdownV2',
   });
+
+  console.log('Telegram message sent.');
 
   persistNotifiedAt(store, action, new Date().toISOString());
 }
