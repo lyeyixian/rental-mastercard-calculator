@@ -130,7 +130,9 @@ The fetch agent runs immediately on `load` (because of `RunAtLoad`) and then dai
 launchctl list | grep lyeyixian
 
 # The fetch run on `load` (or the next 19:00, or the next login) appends to
-# ~/Library/Logs/rental-fetch.log — either an actual fetch summary or silent dedup output.
+# ~/Library/Logs/rental-fetch.log. Every run logs one timestamped outcome line
+# (fetched, already cached, or skipped on the 1st), e.g.:
+#   2026-07-15 22:30:01.123 INFO [fetch] Rate for 2026-07 already cached (...)
 cat ~/Library/Logs/rental-fetch.log
 
 # Notify entries appear after the first 20:00 calendar slot fires (10th–15th).

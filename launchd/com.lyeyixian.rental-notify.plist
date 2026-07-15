@@ -36,6 +36,7 @@
     <key>ProgramArguments</key>
     <array>
         <string>__PNPM__</string>
+        <string>--silent</string>
         <string>run</string>
         <string>notify</string>
     </array>

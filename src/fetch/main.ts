@@ -6,14 +6,18 @@ import {
   getFirstDayOfCurrentMonth,
   isFirstOfMonth,
 } from '../shared/date';
+import { createLogger } from '../shared/log';
 import { createStateStore } from '../shared/state';
 import { fetchRate } from './fetchRate';
 import { copyToClipboard, printSummary } from './output';
+
+const log = createLogger('fetch');
 
 async function main(): Promise<void> {
   // PRD #7's "from the 2nd" floor: Mastercard may not have published the
   // 1st-of-month rate yet, so don't even try.
   if (isFirstOfMonth()) {
+    log.info('Skipping: 1st of the month, Mastercard may not have published the Transaction Date rate yet.');
     return;
   }
 
@@ -29,6 +33,9 @@ async function main(): Promise<void> {
     cached.transferAmount !== null
   ) {
     const transferAmountFormatted = cached.transferAmount.toFixed(2);
+    log.info(
+      `Rate for ${month} already cached (fetched ${cached.fetchedAt}); Transfer Amount ${CONFIG.toCurrency} ${transferAmountFormatted}.`,
+    );
     printSummary({
       transactionDate,
       fromCurrency: CONFIG.fromCurrency,
@@ -53,6 +60,10 @@ async function main(): Promise<void> {
   const transferAmount = crdhldBillAmt - CONFIG.deductionSgd;
   const transferAmountFormatted = transferAmount.toFixed(2);
 
+  log.info(
+    `Fetched Mastercard FX Rate for ${transactionDate}: ${rate}; Transfer Amount ${CONFIG.toCurrency} ${transferAmountFormatted}.`,
+  );
+
   store.apply({
     kind: 'rateFetched',
     month,
@@ -72,6 +83,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((err: Error) => {
-  console.error(err.message);
+  log.error(err);
   process.exit(1);
 });

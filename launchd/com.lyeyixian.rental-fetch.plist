@@ -40,6 +40,7 @@
     <key>ProgramArguments</key>
     <array>
         <string>__PNPM__</string>
+        <string>--silent</string>
         <string>start</string>
     </array>
 

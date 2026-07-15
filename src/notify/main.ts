@@ -1,6 +1,7 @@
 import { CONFIG } from '../config';
 import { STATE_FILE } from '../paths';
 import { formatDate } from '../shared/date';
+import { createLogger } from '../shared/log';
 import { createStateStore, StateStore } from '../shared/state';
 import {
   formatLateNoRateMessage,
@@ -11,6 +12,8 @@ import { decideNotifyAction, NotifyAction } from './notifyDecision';
 import { resolveDate } from './resolveDate';
 import { loadSecrets } from './secrets';
 import { sendMessage } from './telegram';
+
+const log = createLogger('notify');
 
 const MONTH_NAMES = [
   'January',
@@ -96,13 +99,13 @@ function describeAction(action: NotifyAction): string {
 async function main(): Promise<void> {
   const { date, testMode } = resolveDate(process.env.NOTIFY_TEST_DATE, new Date());
   if (testMode) {
-    console.log(`Test mode: treating today as ${formatDate(date)}.`);
+    log.info(`Test mode: treating today as ${formatDate(date)}.`);
   }
 
   const store = createStateStore(STATE_FILE);
   const action = decideNotifyAction(date, store.readState());
 
-  console.log(describeAction(action));
+  log.info(describeAction(action));
 
   if (action.kind === 'noop') {
     return;
@@ -118,10 +121,10 @@ async function main(): Promise<void> {
     parseMode: 'MarkdownV2',
   });
 
-  console.log('Telegram message sent.');
+  log.info('Telegram message sent.');
 
   if (testMode) {
-    console.log('Test mode: skipping state write (notifiedAt unchanged).');
+    log.info('Test mode: skipping state write (notifiedAt unchanged).');
     return;
   }
 
@@ -129,6 +132,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((err: Error) => {
-  console.error(err.message);
+  log.error(err);
   process.exit(1);
 });
