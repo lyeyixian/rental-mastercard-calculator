@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #
 # Unload both launchd agents and remove their plists from ~/Library/LaunchAgents.
-# Logs under local/*.log are left in place; delete them by hand if you want a
-# clean slate.
+# Logs under ~/Library/Logs/rental-*.log are left in place; delete them by hand
+# if you want a clean slate.
 #
 # Usage:
 #   scripts/uninstall-launchd.sh

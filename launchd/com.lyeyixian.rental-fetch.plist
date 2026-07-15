@@ -21,6 +21,13 @@
                     /opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin
                     On Intel macOS, use:
                     /usr/local/bin:/usr/bin:/bin
+    __LOG_DIR__     directory for the agent's stdout/stderr log, e.g.
+                    /Users/yourname/Library/Logs. Must be OUTSIDE the
+                    TCC-protected folders (~/Documents, ~/Desktop, ~/Downloads):
+                    launchd opens the log file before spawning the job, macOS
+                    privacy protection denies that open for a non-Apple program,
+                    and the job dies with a silent exit 78 (EX_CONFIG) and an
+                    empty log. See ADR-0009.
 
   See README "Running autonomously with launchd" for install / verify / uninstall.
 -->
@@ -60,9 +67,9 @@
     </dict>
 
     <key>StandardOutPath</key>
-    <string>__REPO_PATH__/local/fetch.log</string>
+    <string>__LOG_DIR__/rental-fetch.log</string>
 
     <key>StandardErrorPath</key>
-    <string>__REPO_PATH__/local/fetch.log</string>
+    <string>__LOG_DIR__/rental-fetch.log</string>
 </dict>
 </plist>

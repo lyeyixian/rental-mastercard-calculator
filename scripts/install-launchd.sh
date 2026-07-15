@@ -14,7 +14,11 @@
 # Override the auto-detected values if the guesses are wrong for your setup:
 #   PNPM_BIN="/opt/homebrew/bin/pnpm" scripts/install-launchd.sh   # absolute pnpm path
 #   LAUNCHD_PATH="/opt/homebrew/bin:/usr/bin:/bin" scripts/install-launchd.sh   # agent PATH
-# (LAUNCHD_PATH defaults to the directories holding pnpm + node plus /usr/bin:/bin.)
+#   LOG_DIR="$HOME/some/dir" scripts/install-launchd.sh            # agent log directory
+# (LAUNCHD_PATH defaults to the directories holding pnpm + node plus /usr/bin:/bin.
+#  LOG_DIR defaults to ~/Library/Logs and must stay outside the TCC-protected
+#  folders — ~/Documents, ~/Desktop, ~/Downloads — or launchd cannot open the
+#  log file and the agents die with a silent exit 78; see ADR-0009.)
 #
 set -euo pipefail
 
@@ -44,11 +48,26 @@ resolve_path() {
 
 render() {
     # Substitute placeholders and strip the leading <!-- ... --> template comment.
-    sed -e "s|__REPO_PATH__|$REPO_PATH|g" -e "s|__PNPM__|$PNPM_BIN|g" -e "s|__PATH__|$LAUNCHD_PATH|g" "$1" \
+    sed -e "s|__REPO_PATH__|$REPO_PATH|g" -e "s|__PNPM__|$PNPM_BIN|g" -e "s|__PATH__|$LAUNCHD_PATH|g" \
+        -e "s|__LOG_DIR__|$LOG_DIR|g" "$1" \
         | sed '/^<!--$/,/^-->$/d'
 }
 
 LAUNCHD_PATH="${LAUNCHD_PATH:-$(resolve_path)}"
+
+# Logs must live outside ~/Documents (and the other TCC-protected folders):
+# launchd opens StandardOutPath before spawning the job, and macOS privacy
+# protection denies that open for non-Apple programs, killing the agent with a
+# silent exit 78 (EX_CONFIG). See ADR-0009.
+LOG_DIR="${LOG_DIR:-$HOME/Library/Logs}"
+case "$LOG_DIR" in
+    "$HOME/Documents"*|"$HOME/Desktop"*|"$HOME/Downloads"*)
+        echo "error: LOG_DIR=$LOG_DIR is inside a TCC-protected folder; launchd" >&2
+        echo "cannot open log files there (silent exit 78). Pick a path outside" >&2
+        echo "~/Documents, ~/Desktop and ~/Downloads — e.g. ~/Library/Logs." >&2
+        exit 1
+        ;;
+esac
 
 # launchd resolves ProgramArguments[0] without searching PATH, so the plist needs
 # pnpm's absolute path — and Homebrew's location is machine-specific (Apple Silicon
@@ -63,12 +82,13 @@ fi
 echo "Repo path:        $REPO_PATH"
 echo "pnpm binary:      $PNPM_BIN"
 echo "Embedded PATH:    $LAUNCHD_PATH"
+echo "Log directory:    $LOG_DIR"
 echo "LaunchAgents dir: $LAUNCH_AGENTS"
 echo "Mode:             $([ "$DRY_RUN" = 1 ] && echo dry-run || echo install)"
 echo
 
 if [ "$DRY_RUN" = 0 ]; then
-    mkdir -p "$LAUNCH_AGENTS"
+    mkdir -p "$LAUNCH_AGENTS" "$LOG_DIR"
 fi
 
 for plist in "${PLISTS[@]}"; do
@@ -109,4 +129,4 @@ fi
 
 echo "Done. Verify with:"
 echo "  launchctl list | grep lyeyixian"
-echo "  tail -f $REPO_PATH/local/fetch.log $REPO_PATH/local/notify.log"
+echo "  tail -f $LOG_DIR/rental-fetch.log $LOG_DIR/rental-notify.log"

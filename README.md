@@ -80,7 +80,9 @@ The fully autonomous flow — fetch the rate from the 2nd of the month, daily at
 - **`com.lyeyixian.rental-fetch.plist`** — `RunAtLoad=true` plus `StartCalendarInterval` at 19:00 daily. Fires once per day (and on login); the fetch script's date guard and state-file dedup make all firings after the first successful fetch of the month effectively a no-op. See [ADR-0007](./docs/adr/0007-fetch-daily-calendar-trigger.md) for why daily rather than login-only.
 - **`com.lyeyixian.rental-notify.plist`** — `StartCalendarInterval` for day=10, 11, 12, 13, 14, 15 at hour=20. The notify state machine decides what (if anything) to send each evening.
 
-Both plists redirect stdout and stderr to `local/fetch.log` and `local/notify.log`, which the directory-level `local/` gitignore already covers.
+Both plists redirect stdout and stderr to `~/Library/Logs/rental-fetch.log` and `~/Library/Logs/rental-notify.log`.
+
+> **Why the logs live outside the repo:** launchd opens each agent's `StandardOutPath` *before* spawning the job, and macOS privacy protection (TCC) denies that open to non-Apple programs when the file sits inside `~/Documents`, `~/Desktop`, or `~/Downloads`. The agent then dies with a silent `EX_CONFIG` (exit 78) and an empty log — no Telegram message, no error anywhere. If your repo checkout lives in one of those folders (the typical case), the logs cannot. See [ADR-0009](./docs/adr/0009-launchd-logs-outside-tcc-folders.md).
 
 ### Quick install
 
@@ -92,24 +94,25 @@ scripts/install-launchd.sh             # install + load
 scripts/uninstall-launchd.sh           # unload + remove
 ```
 
-The script auto-detects pnpm's absolute path and the directory holding `node`, wiring the former into the plist's `ProgramArguments` and the latter into its `PATH`. Override with `PNPM_BIN=...` (pnpm's path) or `LAUNCHD_PATH=...` (the agent `PATH`) if a detected value is wrong for your setup (e.g. `LAUNCHD_PATH="/opt/homebrew/bin:/usr/bin:/bin"`).
+The script auto-detects pnpm's absolute path and the directory holding `node`, wiring the former into the plist's `ProgramArguments` and the latter into its `PATH`. Override with `PNPM_BIN=...` (pnpm's path) or `LAUNCHD_PATH=...` (the agent `PATH`) if a detected value is wrong for your setup (e.g. `LAUNCHD_PATH="/opt/homebrew/bin:/usr/bin:/bin"`). Logs default to `~/Library/Logs`; override with `LOG_DIR=...` — the script refuses TCC-protected locations (see the note above).
 
 If you'd rather see exactly what goes into `~/Library/LaunchAgents/`, the manual procedure below is the same set of steps spelled out by hand.
 
 ### Install (manual)
 
-The plist templates contain three placeholder tokens you replace with your own paths:
+The plist templates contain four placeholder tokens you replace with your own paths:
 
 - `__REPO_PATH__` — absolute path to this repo checkout (e.g. `/Users/yourname/Documents/repo/rental-mastercard-calculator`).
 - `__PNPM__` — absolute path to the `pnpm` binary (find it with `command -v pnpm`; on Apple Silicon this is typically `/opt/homebrew/bin/pnpm`, on Intel `/usr/local/bin/pnpm`). launchd needs an absolute path here — unlike a shell, it doesn't search `PATH` to resolve the command name.
 - `__PATH__` — the `PATH` the agent should inherit. Must include the directory holding `node` (pnpm shells out to it). On Apple Silicon with Homebrew, typically `/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin`.
+- `__LOG_DIR__` — directory for the agents' stdout/stderr logs, e.g. `/Users/yourname/Library/Logs`. Must be outside `~/Documents`, `~/Desktop`, and `~/Downloads` (see the note above).
 
 ```bash
 # Copy the templates into your LaunchAgents directory.
 cp launchd/com.lyeyixian.rental-fetch.plist ~/Library/LaunchAgents/
 cp launchd/com.lyeyixian.rental-notify.plist ~/Library/LaunchAgents/
 
-# Edit both copies — replace __REPO_PATH__, __PNPM__, and __PATH__ with real values.
+# Edit both copies — replace __REPO_PATH__, __PNPM__, __PATH__, and __LOG_DIR__ with real values.
 $EDITOR ~/Library/LaunchAgents/com.lyeyixian.rental-fetch.plist
 $EDITOR ~/Library/LaunchAgents/com.lyeyixian.rental-notify.plist
 
@@ -127,14 +130,18 @@ The fetch agent runs immediately on `load` (because of `RunAtLoad`) and then dai
 launchctl list | grep lyeyixian
 
 # The fetch run on `load` (or the next 19:00, or the next login) appends to
-# local/fetch.log — either an actual fetch summary or silent dedup output.
-cat local/fetch.log
+# ~/Library/Logs/rental-fetch.log — either an actual fetch summary or silent dedup output.
+cat ~/Library/Logs/rental-fetch.log
 
 # Notify entries appear after the first 20:00 calendar slot fires (10th–15th).
-cat local/notify.log
+cat ~/Library/Logs/rental-notify.log
+
+# If an agent shows exit status 78 in `launchctl list` with an empty log, its
+# log path is almost certainly inside a TCC-protected folder — see the note
+# under "Running autonomously with launchd".
 ```
 
-For an end-to-end smoke test of the fetch pipeline, either log out and log back in (`RunAtLoad`) or wait for the next 19:00 with the laptop awake: `local/fetch.log` should record the next invocation.
+For an end-to-end smoke test of the fetch pipeline, either log out and log back in (`RunAtLoad`) or wait for the next 19:00 with the laptop awake: `~/Library/Logs/rental-fetch.log` should record the next invocation.
 
 ### Uninstall
 
