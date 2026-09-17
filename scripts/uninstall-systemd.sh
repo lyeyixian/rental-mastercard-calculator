@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 #
-# Stop and disable both timers, remove the four units from
-# ~/.config/systemd/user, and reload the user manager. Journal entries are
-# left in place.
+# Stop and disable both timers and unlink all four units from the user
+# manager. Journal entries are left in place, and so is lingering, since
+# other user services on the machine may rely on it:
+#   loginctl disable-linger "$USER"   # if you want it off too
 #
 # Usage:
 #   scripts/uninstall-systemd.sh
 #
 set -euo pipefail
 
-UNIT_DIR="$HOME/.config/systemd/user"
-UNITS=(rental-fetch.service rental-fetch.timer rental-notify.service rental-notify.timer)
+SERVICES=(rental-fetch.service rental-notify.service)
 TIMERS=(rental-fetch.timer rental-notify.timer)
 
 if ! command -v systemctl >/dev/null 2>&1; then
@@ -18,29 +18,26 @@ if ! command -v systemctl >/dev/null 2>&1; then
     exit 1
 fi
 
+# disable removes the timers.target symlink and the link into the unit
+# directory in one go; --now stops the timer first.
 for timer in "${TIMERS[@]}"; do
-    echo "=== $timer ==="
-    if systemctl --user is-enabled "$timer" >/dev/null 2>&1 \
-        || systemctl --user is-active "$timer" >/dev/null 2>&1; then
+    if systemctl --user cat "$timer" >/dev/null 2>&1; then
         systemctl --user disable --now "$timer"
-        echo "Disabled $timer"
+        echo "Disabled and unlinked $timer"
     else
-        echo "Not enabled: $timer"
+        echo "Not installed: $timer"
     fi
-    echo
 done
 
-for unit in "${UNITS[@]}"; do
-    dst="$UNIT_DIR/$unit"
-    if [ -f "$dst" ]; then
-        rm "$dst"
-        echo "Removed $dst"
+# Linked services have no [Install] section, so disable only removes the link.
+for service in "${SERVICES[@]}"; do
+    if systemctl --user cat "$service" >/dev/null 2>&1; then
+        systemctl --user disable "$service"
+        echo "Unlinked $service"
     else
-        echo "Not present: $dst"
+        echo "Not installed: $service"
     fi
 done
-echo
 
 systemctl --user daemon-reload
-echo "Reloaded the user manager"
 echo "Done."

@@ -1,23 +1,20 @@
-# Tokens to replace before installing into ~/.config/systemd/user/
-# (scripts/install-systemd.sh does this for you):
-#
-#   __REPO_PATH__   absolute path to this repository checkout
-#   __PNPM__        absolute path to the pnpm binary (`command -v pnpm`)
-#   __PATH__        PATH the service inherits. Must include the directory
-#                   holding `node`, which pnpm shells out to.
-
 # Notify service: runs the notify script, whose state machine
 # (src/notify/notifyDecision.ts) decides per-day what to send on Telegram
 # (warning, reminder, late-no-rate, or nothing).
 #
+# node and pnpm come from nvm, which only puts them on PATH when nvm.sh is
+# sourced, so the command runs through bash and sources it first.
+#
 # Triggered by rental-notify.timer. Output goes to journald:
 #   journalctl --user -u rental-notify.service
+#
+# Installed by symlink from this repo (scripts/install-systemd.sh), so
+# %h expands to the home directory and no rendering step is needed.
 
 [Unit]
 Description=Rental: send the Telegram warning or reminder for this evening
 
 [Service]
 Type=oneshot
-WorkingDirectory=__REPO_PATH__
-Environment=PATH=__PATH__
-ExecStart=__PNPM__ --silent run notify
+WorkingDirectory=%h/repo/rental-mastercard-calculator
+ExecStart=/bin/bash -c 'source %h/.nvm/nvm.sh && exec pnpm --silent run notify'
