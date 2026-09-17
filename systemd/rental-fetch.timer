@@ -1,0 +1,15 @@
+# Fires rental-fetch.service daily at 19:00 local time.
+#
+# Persistent=true stands in for launchd's RunAtLoad: if the machine was off
+# (or the timer inactive) at 19:00, the missed run fires as soon as the timer
+# is next activated, e.g. at boot.
+
+[Unit]
+Description=Rental: daily 19:00 trigger for rental-fetch.service
+
+[Timer]
+OnCalendar=*-*-* 19:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

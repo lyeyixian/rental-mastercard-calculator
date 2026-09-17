@@ -178,7 +178,10 @@ The Transaction Date is not configurable; it is always computed as the 1st of th
 
 ## Platform note (clipboard)
 
-The clipboard step shells out to `pbcopy`, which is **macOS-only**. On Linux or Windows the spawn fails silently and the script still prints the Transfer Amount to stdout — copy it manually from there.
+The clipboard step shells out to `pbcopy`, which is **macOS-only**. Two things keep it from mattering anywhere else:
+
+- `copyToClipboard` returns early when stdout is not a TTY, so under launchd, systemd, or `xvfb-run` it never runs at all. The Telegram reminder carries the Transfer Amount instead.
+- On an interactive Linux or Windows shell the `pbcopy` spawn error is swallowed and the script still prints the Transfer Amount to stdout. Copy it manually from there.
 
 ## Failure modes
 

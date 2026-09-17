@@ -1,0 +1,28 @@
+# Tokens to replace before installing into ~/.config/systemd/user/
+# (scripts/install-systemd.sh does this for you):
+#
+#   __REPO_PATH__   absolute path to this repository checkout
+#   __PNPM__        absolute path to the pnpm binary (`command -v pnpm`)
+#   __PATH__        PATH the service inherits. Must include the directory
+#                   holding `node`, which pnpm shells out to.
+
+# Fetch service: runs the fetch script under a virtual X display (xvfb-run) so
+# Playwright's headed Chromium works on a server with no desktop. The script
+# calls Mastercard's conversion-rates API for the 1st of the current month and
+# caches the result in local/state.json. Its self-dedup (src/shared/state.ts)
+# makes every firing after the first successful fetch of the month a no-op,
+# and it exits silently on the 1st. See ADR-0007 for the daily trigger.
+#
+# Triggered by rental-fetch.timer. Output goes to journald:
+#   journalctl --user -u rental-fetch.service
+
+[Unit]
+Description=Rental: cache the Mastercard FX Rate for the 1st of the month
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=__REPO_PATH__
+Environment=PATH=__PATH__
+ExecStart=/usr/bin/xvfb-run -a __PNPM__ --silent start
