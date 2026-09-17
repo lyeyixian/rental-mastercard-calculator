@@ -1,0 +1,13 @@
+# Fires rental-notify.service at 20:00 local time on the 10th through the
+# 15th of every month. Persistent=true replays a slot missed while the
+# machine was off, so a reboot at 20:00 on the 15th does not lose the reminder.
+
+[Unit]
+Description=Rental: 20:00 trigger on the 10th-15th for rental-notify.service
+
+[Timer]
+OnCalendar=*-*-10..15 20:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
