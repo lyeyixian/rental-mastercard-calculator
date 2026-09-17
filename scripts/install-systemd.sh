@@ -2,7 +2,8 @@
 #
 # Render the unit templates under systemd/ with this machine's paths, install
 # them into ~/.config/systemd/user, reload the user manager, and enable both
-# timers. Re-running is idempotent: the units are overwritten and re-enabled.
+# timers. Re-running is idempotent: the units are overwritten and the timers
+# restarted, so an edited schedule takes effect immediately.
 #
 # Linux counterpart of scripts/install-launchd.sh. Output goes to journald, so
 # there is no log directory to configure (ADR-0009 does not apply here).
@@ -72,8 +73,10 @@ if [ "$DRY_RUN" = 0 ]; then
         echo "On macOS use scripts/install-launchd.sh instead." >&2
         exit 1
     fi
-    if ! command -v xvfb-run >/dev/null 2>&1; then
-        echo "error: xvfb-run not found; rental-fetch.service needs it (sudo apt install xvfb)." >&2
+    # rental-fetch.service hardcodes /usr/bin/xvfb-run, so check that path
+    # rather than $PATH.
+    if [ ! -x /usr/bin/xvfb-run ]; then
+        echo "error: /usr/bin/xvfb-run not found; rental-fetch.service needs it (sudo apt install xvfb)." >&2
         exit 1
     fi
 fi
@@ -119,9 +122,12 @@ fi
 systemctl --user daemon-reload
 echo "Reloaded the user manager"
 
+# enable --now leaves an already-running timer on its old schedule, so restart
+# it as well to pick up any edits to OnCalendar=.
 for timer in "${TIMERS[@]}"; do
-    systemctl --user enable --now "$timer"
-    echo "Enabled $timer"
+    systemctl --user enable "$timer"
+    systemctl --user restart "$timer"
+    echo "Enabled and (re)started $timer"
 done
 echo
 

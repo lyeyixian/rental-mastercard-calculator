@@ -15,8 +15,6 @@
 
 [Unit]
 Description=Rental: send the Telegram warning or reminder for this evening
-After=network-online.target
-Wants=network-online.target
 
 [Service]
 Type=oneshot

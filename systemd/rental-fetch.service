@@ -18,8 +18,6 @@
 
 [Unit]
 Description=Rental: cache the Mastercard FX Rate for the 1st of the month
-After=network-online.target
-Wants=network-online.target
 
 [Service]
 Type=oneshot
