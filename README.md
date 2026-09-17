@@ -75,6 +75,8 @@ NOTIFY_TEST_DATE=2026-07-12 pnpm notify   # warning branch
 
 ## Running autonomously with launchd
 
+This is the macOS path. Since September 2026 the schedule runs on a Linux home server instead; see "Running autonomously with systemd" below and [ADR-0010](./docs/adr/0010-home-server-systemd-xvfb.md). The launchd agents still work and stay in the repo, but only one machine may run the notify agent at a time or the Telegram reminder goes out twice.
+
 The fully autonomous flow — fetch the rate from the 2nd of the month, daily at 19:00 (and on login), and deliver a Telegram reminder at 8pm on the 15th — is driven by two macOS `launchd` LaunchAgents whose templates live in [`launchd/`](./launchd):
 
 - **`com.lyeyixian.rental-fetch.plist`** — `RunAtLoad=true` plus `StartCalendarInterval` at 19:00 daily. Fires once per day (and on login); the fetch script's date guard and state-file dedup make all firings after the first successful fetch of the month effectively a no-op. See [ADR-0007](./docs/adr/0007-fetch-daily-calendar-trigger.md) for why daily rather than login-only.
@@ -155,6 +157,78 @@ rm ~/Library/LaunchAgents/com.lyeyixian.rental-notify.plist
 ```
 
 `pnpm start` and `pnpm run notify` continue to work after uninstall — the launchd integration is purely a scheduler layer on top of the same scripts.
+
+## Running autonomously with systemd
+
+The same two jobs on a Linux host, as systemd user units under [`systemd/`](./systemd). This is what runs in production since the September 2026 cutover ([ADR-0010](./docs/adr/0010-home-server-systemd-xvfb.md)). The scripts are untouched; only the scheduler layer differs from launchd.
+
+- **`rental-fetch.service`** and **`rental-fetch.timer`**: `OnCalendar=*-*-* 19:00:00`, daily. The service runs `xvfb-run -a pnpm --silent start`, so Playwright's headed Chromium gets a virtual X display and [ADR-0002](./docs/adr/0002-local-headed-browser.md) still holds on a box with no desktop.
+- **`rental-notify.service`** and **`rental-notify.timer`**: `OnCalendar=*-*-10..15 20:00:00`. Runs `pnpm --silent run notify`.
+
+Both timers set `Persistent=true`, so a slot missed while the machine was off fires as soon as it is back. There is no `RunAtLoad` equivalent: a fresh install does not fetch until the next 19:00 unless you start the service by hand (below).
+
+Output goes to journald, not to log files, so the TCC problem behind [ADR-0009](./docs/adr/0009-launchd-logs-outside-tcc-folders.md) does not exist here.
+
+### Assumptions baked into the units
+
+The units are symlinked straight out of the checkout rather than rendered and copied, so there are no placeholders to fill in. In exchange they assume two things, and `scripts/install-systemd.sh` refuses to run if either is false:
+
+- The checkout lives at `~/repo/rental-mastercard-calculator` (`WorkingDirectory=%h/repo/rental-mastercard-calculator`).
+- `node` and `pnpm` come from [nvm](https://github.com/nvm-sh/nvm). Each `ExecStart` runs through `bash -c 'source ~/.nvm/nvm.sh && exec ...'`, because systemd resolves bare commands against a fixed search path and nvm only adds its `bin` directory when `nvm.sh` is sourced. Sourcing it also follows nvm's default alias, so a node upgrade needs no unit edit.
+
+If your server differs, edit `WorkingDirectory` and `ExecStart` in both service files and the `EXPECTED_PATH` check in the install script.
+
+### Server prerequisites
+
+On top of the [Requirements](#requirements) above:
+
+```bash
+pnpm exec playwright install --with-deps chromium   # pulls the Linux shared libs Chromium needs
+sudo apt install xvfb                                # provides /usr/bin/xvfb-run
+sudo timedatectl set-timezone Asia/Singapore         # the schedules are wall-clock; check with `date`
+```
+
+Then copy the gitignored state and secrets over from wherever the agents ran before ([ADR-0005](./docs/adr/0005-state-and-secrets-in-repo.md)), and lock down the secrets file:
+
+```bash
+scp local/.env local/state.json user@server:~/repo/rental-mastercard-calculator/local/
+ssh user@server chmod 600 ~/repo/rental-mastercard-calculator/local/.env
+```
+
+### Install
+
+```bash
+scripts/install-systemd.sh     # link units, enable + restart both timers, enable lingering
+scripts/uninstall-systemd.sh   # disable timers, unlink all four units
+```
+
+The install script links the two services, enables the two timers, and restarts the timers so an edited `OnCalendar=` takes effect on re-run. It also runs `loginctl enable-linger` for you if lingering is off. Without lingering the user manager, and every timer in it, stops when your last session ends, so the jobs would die the moment you close SSH. Uninstall leaves lingering on because other user services may depend on it; `loginctl disable-linger "$USER"` turns it off.
+
+Because the units are symlinks, editing one and running `systemctl --user daemon-reload` is enough to pick up the change. A changed timer schedule also needs `systemctl --user restart rental-fetch.timer` (or re-run the install script, which does that).
+
+### Verify
+
+```bash
+# Both timers with their next fire time.
+systemctl --user list-timers 'rental-*'
+
+# Run the fetch now instead of waiting for 19:00. Safe to repeat: the script
+# no-ops once the month is cached.
+systemctl --user start rental-fetch.service
+
+# Every run logs one outcome line (fetched, already cached, or skipped on the 1st).
+journalctl --user -u rental-fetch --since today
+journalctl --user -u rental-notify --since today
+
+# Follow both live.
+journalctl --user -u rental-fetch -u rental-notify -f
+```
+
+To confirm the Telegram token and chat ID work from the server, use `NOTIFY_TEST_DATE` with a date in a month that has no entry in `local/state.json`. A date in the current month prints `noop` once the month's rate is cached or `notifiedAt` is set, because test mode only skips the state write, it does not ignore existing state.
+
+```bash
+NOTIFY_TEST_DATE=2026-10-12 pnpm notify   # warning branch, sends a real message, writes nothing
+```
 
 ## Configuration
 
