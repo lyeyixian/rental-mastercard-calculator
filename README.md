@@ -60,7 +60,7 @@ The Telegram path delivers the autonomous reminder on the **Reminder Date**. To 
    ```
    Treat the bot token as a password. Worst case if leaked: a stranger can spam your own chat with the bot — limited blast radius, but still worth locking down.
 
-The reminder itself is delivered by the notify agent on its scheduled evenings (see "Running autonomously with launchd" below); there is no separate placeholder-message step.
+The reminder itself is delivered by the notify agent on its scheduled evenings (see "Running autonomously with systemd" below); there is no separate placeholder-message step.
 
 ### Testing the reminder on demand
 
@@ -73,101 +73,16 @@ NOTIFY_TEST_DATE=2026-07-12 pnpm notify   # warning branch
 
 `NOTIFY_TEST_DATE` runs in **test mode**: it sends a real message so you can confirm your bot token and chat ID work, but it deliberately **skips the state write**, so a test run never sets `notifiedAt` and can't suppress the genuine scheduled reminder. The value must be a real `YYYY-MM-DD` calendar date — a malformed or impossible date (e.g. `2026-02-30`) exits with an error rather than guessing.
 
-## Running autonomously with launchd
-
-This is the macOS path. Since September 2026 the schedule runs on a Linux home server instead; see "Running autonomously with systemd" below and [ADR-0010](./docs/adr/0010-home-server-systemd-xvfb.md). The launchd agents still work and stay in the repo, but only one machine may run the notify agent at a time or the Telegram reminder goes out twice.
-
-The fully autonomous flow — fetch the rate from the 2nd of the month, daily at 19:00 (and on login), and deliver a Telegram reminder at 8pm on the 15th — is driven by two macOS `launchd` LaunchAgents whose templates live in [`launchd/`](./launchd):
-
-- **`com.lyeyixian.rental-fetch.plist`** — `RunAtLoad=true` plus `StartCalendarInterval` at 19:00 daily. Fires once per day (and on login); the fetch script's date guard and state-file dedup make all firings after the first successful fetch of the month effectively a no-op. See [ADR-0007](./docs/adr/0007-fetch-daily-calendar-trigger.md) for why daily rather than login-only.
-- **`com.lyeyixian.rental-notify.plist`** — `StartCalendarInterval` for day=10, 11, 12, 13, 14, 15 at hour=20. The notify state machine decides what (if anything) to send each evening.
-
-Both plists redirect stdout and stderr to `~/Library/Logs/rental-fetch.log` and `~/Library/Logs/rental-notify.log`.
-
-> **Why the logs live outside the repo:** launchd opens each agent's `StandardOutPath` *before* spawning the job, and macOS privacy protection (TCC) denies that open to non-Apple programs when the file sits inside `~/Documents`, `~/Desktop`, or `~/Downloads`. The agent then dies with a silent `EX_CONFIG` (exit 78) and an empty log — no Telegram message, no error anywhere. If your repo checkout lives in one of those folders (the typical case), the logs cannot. See [ADR-0009](./docs/adr/0009-launchd-logs-outside-tcc-folders.md).
-
-### Quick install
-
-`scripts/install-launchd.sh` renders both templates with this machine's paths, copies them into `~/Library/LaunchAgents/`, and `launchctl load`s them. Re-running is safe — already-loaded agents are unloaded first. Pair with `scripts/uninstall-launchd.sh` to tear everything down.
-
-```bash
-scripts/install-launchd.sh --dry-run   # preview the rendered plists; touch nothing
-scripts/install-launchd.sh             # install + load
-scripts/uninstall-launchd.sh           # unload + remove
-```
-
-The script auto-detects pnpm's absolute path and the directory holding `node`, wiring the former into the plist's `ProgramArguments` and the latter into its `PATH`. Override with `PNPM_BIN=...` (pnpm's path) or `LAUNCHD_PATH=...` (the agent `PATH`) if a detected value is wrong for your setup (e.g. `LAUNCHD_PATH="/opt/homebrew/bin:/usr/bin:/bin"`). Logs default to `~/Library/Logs`; override with `LOG_DIR=...` — the script refuses TCC-protected locations (see the note above).
-
-If you'd rather see exactly what goes into `~/Library/LaunchAgents/`, the manual procedure below is the same set of steps spelled out by hand.
-
-### Install (manual)
-
-The plist templates contain four placeholder tokens you replace with your own paths:
-
-- `__REPO_PATH__` — absolute path to this repo checkout (e.g. `/Users/yourname/Documents/repo/rental-mastercard-calculator`).
-- `__PNPM__` — absolute path to the `pnpm` binary (find it with `command -v pnpm`; on Apple Silicon this is typically `/opt/homebrew/bin/pnpm`, on Intel `/usr/local/bin/pnpm`). launchd needs an absolute path here — unlike a shell, it doesn't search `PATH` to resolve the command name.
-- `__PATH__` — the `PATH` the agent should inherit. Must include the directory holding `node` (pnpm shells out to it). On Apple Silicon with Homebrew, typically `/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin`.
-- `__LOG_DIR__` — directory for the agents' stdout/stderr logs, e.g. `/Users/yourname/Library/Logs`. Must be outside `~/Documents`, `~/Desktop`, and `~/Downloads` (see the note above).
-
-```bash
-# Copy the templates into your LaunchAgents directory.
-cp launchd/com.lyeyixian.rental-fetch.plist ~/Library/LaunchAgents/
-cp launchd/com.lyeyixian.rental-notify.plist ~/Library/LaunchAgents/
-
-# Edit both copies — replace __REPO_PATH__, __PNPM__, __PATH__, and __LOG_DIR__ with real values.
-$EDITOR ~/Library/LaunchAgents/com.lyeyixian.rental-fetch.plist
-$EDITOR ~/Library/LaunchAgents/com.lyeyixian.rental-notify.plist
-
-# Load both agents.
-launchctl load ~/Library/LaunchAgents/com.lyeyixian.rental-fetch.plist
-launchctl load ~/Library/LaunchAgents/com.lyeyixian.rental-notify.plist
-```
-
-The fetch agent runs immediately on `load` (because of `RunAtLoad`) and then daily at 19:00 thereafter. The notify agent waits for its next calendar slot.
-
-### Verify
-
-```bash
-# Both agents should be listed.
-launchctl list | grep lyeyixian
-
-# The fetch run on `load` (or the next 19:00, or the next login) appends to
-# ~/Library/Logs/rental-fetch.log. Every run logs one timestamped outcome line
-# (fetched, already cached, or skipped on the 1st), e.g.:
-#   2026-07-15 22:30:01.123 INFO [fetch] Rate for 2026-07 already cached (...)
-cat ~/Library/Logs/rental-fetch.log
-
-# Notify entries appear after the first 20:00 calendar slot fires (10th–15th).
-cat ~/Library/Logs/rental-notify.log
-
-# If an agent shows exit status 78 in `launchctl list` with an empty log, its
-# log path is almost certainly inside a TCC-protected folder — see the note
-# under "Running autonomously with launchd".
-```
-
-For an end-to-end smoke test of the fetch pipeline, either log out and log back in (`RunAtLoad`) or wait for the next 19:00 with the laptop awake: `~/Library/Logs/rental-fetch.log` should record the next invocation.
-
-### Uninstall
-
-```bash
-launchctl unload ~/Library/LaunchAgents/com.lyeyixian.rental-fetch.plist
-launchctl unload ~/Library/LaunchAgents/com.lyeyixian.rental-notify.plist
-rm ~/Library/LaunchAgents/com.lyeyixian.rental-fetch.plist
-rm ~/Library/LaunchAgents/com.lyeyixian.rental-notify.plist
-```
-
-`pnpm start` and `pnpm run notify` continue to work after uninstall — the launchd integration is purely a scheduler layer on top of the same scripts.
-
 ## Running autonomously with systemd
 
-The same two jobs on a Linux host, as systemd user units under [`systemd/`](./systemd). This is what runs in production since the September 2026 cutover ([ADR-0010](./docs/adr/0010-home-server-systemd-xvfb.md)). The scripts are untouched; only the scheduler layer differs from launchd.
+The fully autonomous flow, fetch the rate from the 2nd of the month daily at 19:00 and deliver a Telegram reminder at 20:00 on the 15th, runs as four systemd user units under [`systemd/`](./systemd) on a Linux home server. It replaced a pair of macOS launchd agents in September 2026 ([ADR-0010](./docs/adr/0010-home-server-systemd-xvfb.md)). The launchd files were removed once the cutover settled. ADR-0007 and ADR-0009 describe that era. The scheduler is a layer on top of `pnpm start` and `pnpm run notify`, which keep working by hand anywhere.
 
 - **`rental-fetch.service`** and **`rental-fetch.timer`**: `OnCalendar=*-*-* 19:00:00`, daily. The service runs `xvfb-run -a pnpm --silent start`, so Playwright's headed Chromium gets a virtual X display and [ADR-0002](./docs/adr/0002-local-headed-browser.md) still holds on a box with no desktop.
 - **`rental-notify.service`** and **`rental-notify.timer`**: `OnCalendar=*-*-10..15 20:00:00`. Runs `pnpm --silent run notify`.
 
-Both timers set `Persistent=true`, so a slot missed while the machine was off fires as soon as it is back. There is no `RunAtLoad` equivalent: a fresh install does not fetch until the next 19:00 unless you start the service by hand (below).
+Both timers set `Persistent=true`, so a slot missed while the machine was off fires as soon as it is back. A fresh install does not fetch until the next 19:00 unless you start the service by hand (below). The fetch script's date guard and state-file dedup make every firing after the first successful fetch of the month a no-op, so firing daily costs nothing ([ADR-0007](./docs/adr/0007-fetch-daily-calendar-trigger.md)).
 
-Output goes to journald, not to log files, so the TCC problem behind [ADR-0009](./docs/adr/0009-launchd-logs-outside-tcc-folders.md) does not exist here.
+Output goes to journald, not to log files.
 
 ### Assumptions baked into the units
 
@@ -201,6 +116,8 @@ ssh user@server chmod 600 ~/repo/rental-mastercard-calculator/local/.env
 scripts/install-systemd.sh     # link units, enable + restart both timers, enable lingering
 scripts/uninstall-systemd.sh   # disable timers, unlink all four units
 ```
+
+Only one machine may run the notify agent at a time, or the Telegram reminder goes out twice. Uninstall on the old host before installing on the new one.
 
 The install script links the two services, enables the two timers, and restarts the timers so an edited `OnCalendar=` takes effect on re-run. It also runs `loginctl enable-linger` for you if lingering is off. Without lingering the user manager, and every timer in it, stops when your last session ends, so the jobs would die the moment you close SSH. Uninstall leaves lingering on because other user services may depend on it; `loginctl disable-linger "$USER"` turns it off.
 
@@ -254,7 +171,7 @@ The Transaction Date is not configurable; it is always computed as the 1st of th
 
 The clipboard step shells out to `pbcopy`, which is **macOS-only**. Two things keep it from mattering anywhere else:
 
-- `copyToClipboard` returns early when stdout is not a TTY, so under launchd or systemd it never runs at all. The Telegram reminder carries the Transfer Amount instead.
+- `copyToClipboard` returns early when stdout is not a TTY, so under systemd it never runs at all. The Telegram reminder carries the Transfer Amount instead.
 - On an interactive Linux or Windows shell the `pbcopy` spawn error is swallowed and the script still prints the Transfer Amount to stdout. Copy it manually from there.
 
 ## Failure modes

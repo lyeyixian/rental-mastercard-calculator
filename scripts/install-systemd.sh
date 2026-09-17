@@ -24,7 +24,6 @@ TIMERS=(rental-fetch.timer rental-notify.timer)
 
 if ! command -v systemctl >/dev/null 2>&1; then
     echo "error: systemctl not found; this script is for Linux hosts running systemd." >&2
-    echo "On macOS use scripts/install-launchd.sh instead." >&2
     exit 1
 fi
 

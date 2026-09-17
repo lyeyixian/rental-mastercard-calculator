@@ -12,7 +12,7 @@ The fetch and notify scripts are unchanged. What changed is the layer around the
 
 ## What no longer applies
 
-- **ADR-0009, logs outside TCC folders.** There is no TCC on Linux and no log file to open before spawn. The services write to journald, and `journalctl --user -u rental-fetch` replaces `cat ~/Library/Logs/rental-fetch.log`. The ADR stays on record for anyone who reinstalls the launchd agents.
+- **ADR-0009, logs outside TCC folders.** There is no TCC on Linux and no log file to open before spawn. The services write to journald, and `journalctl --user -u rental-fetch` replaces `cat ~/Library/Logs/rental-fetch.log`. The ADR stays on record in case the agents ever go back to a Mac.
 - **`RunAtLoad`.** systemd timers have no equivalent. `Persistent=true` only replays a run once a last-trigger stamp exists, so a fresh install does not fetch until the next 19:00. The install script prints `systemctl --user start rental-fetch.service` as the manual first run.
 
 ## Considered Options
@@ -33,9 +33,9 @@ The spike (ENG-49) and cutover (ENG-50 to ENG-52) recorded the following on the 
 
 ## Consequences
 
-- The laptop is no longer in the loop. `pnpm start` and `pnpm run notify` still work there for manual use, and the launchd templates and installer stay in the repo, but only one machine may run the notify agent at a time or the Telegram reminder is sent twice.
+- The laptop is no longer in the loop. `pnpm start` and `pnpm run notify` still work there for manual use. The launchd templates and install scripts were deleted once the cutover settled; ADR-0007 and ADR-0009 stay as the record of that setup, and git history has the files. Only one machine may run the notify agent at a time or the Telegram reminder is sent twice.
 - The Chromium popup from ADR-0002 is gone from the desktop. It now opens on an Xvfb display on the server, at most once a month, and nobody sees it.
 - `scripts/install-systemd.sh` turns on lingering when it is off. `scripts/uninstall-systemd.sh` leaves it on, since other user services on the box may depend on it.
 - The units assume the repo lives at `~/repo/rental-mastercard-calculator` and that `~/.nvm/nvm.sh` exists. Moving the checkout or switching away from nvm means editing `WorkingDirectory` and `ExecStart` in both services.
-- The README's launchd section describes the macOS path. A systemd section beside it describes this one. The clipboard note already says the `pbcopy` step never runs under either scheduler because stdout is not a TTY.
+- The README's scheduler section now describes systemd only. The clipboard note already says the `pbcopy` step never runs under the scheduler because stdout is not a TTY.
 - Open question until October: whether Akamai stays happy with Chromium on Xvfb over many runs. If the fetch starts failing from the server while the laptop still succeeds, the ADR-0002 fallback, a stealth library, is the next step.
